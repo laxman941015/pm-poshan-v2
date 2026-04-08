@@ -1,3 +1,11 @@
+# Critical Security
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
 # Logs
 logs
 *.log
