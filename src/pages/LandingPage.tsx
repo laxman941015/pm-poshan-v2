@@ -8,9 +8,13 @@ export default function LandingPage() {
       {/* Fixed Header */}
       <div className="fixed w-full top-0 z-50">
         <header className="bg-white/70 backdrop-blur-md border-b border-white/20 shadow-sm px-4 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-900 to-indigo-800 tracking-tight">
-            पीएम-शालेय पोषण आहार
-          <span style="font-size: 0.8em; opacity: 0.8;">व्यवस्थापन ट्रॅकर</span>
+          <div className="flex flex-col md:flex-row md:items-baseline gap-x-2">
+            <span className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-900 to-indigo-800 tracking-tight">
+              पीएम-शालेय पोषण आहार
+            </span>
+            <span className="text-sm md:text-lg font-semibold text-indigo-600/80 tracking-wide">
+              व्यवस्थापन ट्रॅकर
+            </span>
           </div>
           <Link to="/login" className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:-translate-y-0.5 transition-all duration-200">
             Teacher Login
