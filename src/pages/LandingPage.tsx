@@ -9,7 +9,8 @@ export default function LandingPage() {
       <div className="fixed w-full top-0 z-50">
         <header className="bg-white/70 backdrop-blur-md border-b border-white/20 shadow-sm px-4 py-4 flex items-center justify-between">
           <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-900 to-indigo-800 tracking-tight">
-            प्रधानमंत्री पोषण शक्ती निर्माण योजना - डिजिटल मागोवा
+            पीएम-शालेय पोषण आहार
+          <span style="font-size: 0.8em; opacity: 0.8;">व्यवस्थापन ट्रॅकर</span>
           </div>
           <Link to="/login" className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold py-2.5 px-6 rounded-full shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:-translate-y-0.5 transition-all duration-200">
             Teacher Login
