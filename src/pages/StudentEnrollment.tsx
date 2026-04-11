@@ -86,7 +86,7 @@ export default function StudentEnrollment() {
           std_6: std6,
           std_7: std7,
           std_8: std8
-        }, { onConflict: 'teacher_id' });
+        });
 
       if (error) throw error;
       setMessage({ type: 'success', text: 'Enrollment registry updated successfully.' });
@@ -106,6 +106,8 @@ export default function StudentEnrollment() {
         min="0"
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+        title={label}
+        placeholder="0"
         className="w-full border-2 border-slate-100 bg-slate-50 p-2 text-sm font-black text-slate-800 focus:border-blue-500 transition-all outline-none rounded-none shadow-sm"
       />
     </div>

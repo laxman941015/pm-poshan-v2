@@ -158,8 +158,8 @@ export default function StockRegister() {
       if (existData) {
         const { error: updateError } = await (supabase as any)
           .from('inventory_stock')
-          .update({ current_balance: Number(existData.current_balance) + Number(quantityKg) })
-          .eq('id', existData.id);
+          .update({ current_balance: Number((existData as any).current_balance) + Number(quantityKg) })
+          .eq('id', (existData as any).id);
         if (updateError) throw updateError;
       } else {
         const { error: invError } = await (supabase as any)
@@ -205,8 +205,8 @@ export default function StockRegister() {
     try {
       const { data: invData } = await (supabase as any).from('inventory_stock').select('id, current_balance').eq('teacher_id', userId).eq('item_name', itemName).maybeSingle();
       if (invData) {
-        const newBalance = Number(invData.current_balance) - Number(qty);
-        await (supabase as any).from('inventory_stock').update({ current_balance: newBalance }).eq('id', invData.id);
+        const newBalance = Number((invData as any).current_balance) - Number(qty);
+        await (supabase as any).from('inventory_stock').update({ current_balance: newBalance }).eq('id', (invData as any).id);
       }
       await (supabase as any).from('stock_receipts').delete().eq('id', id);
       fetchStockData();
@@ -249,7 +249,7 @@ export default function StockRegister() {
               <form onSubmit={handleStockSubmit} className="p-4 space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Food Item</label>
-                  <select required value={foodName} onChange={e => setFoodName(e.target.value)} className="w-full border border-slate-300 p-2 text-sm font-bold bg-white outline-none">
+                  <select required value={foodName} onChange={e => setFoodName(e.target.value)} className="w-full border border-slate-300 p-2 text-sm font-bold bg-white outline-none" title="अन्नधान्य निवडा (Select Food Item)">
                     <option value="">-- Select Item --</option>
                     {menuItems.map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
@@ -260,7 +260,7 @@ export default function StockRegister() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Date of Receipt</label>
-                  <input type="date" required value={receiptDate} onChange={e => setReceiptDate(e.target.value)} className="w-full border border-slate-300 p-2 text-sm font-bold bg-slate-50/30 outline-none" />
+                  <input type="date" required value={receiptDate} onChange={e => setReceiptDate(e.target.value)} className="w-full border border-slate-300 p-2 text-sm font-bold bg-slate-50/30 outline-none" title="पावतिची तारीख (Date of Receipt)" placeholder="DD/MM/YYYY" />
                 </div>
 
                 {foodName && inventory.find(i => i.item_name === foodName)?.current_balance < 0 && (
@@ -290,10 +290,10 @@ export default function StockRegister() {
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" />
                   <input 
                     type="text" 
-                    placeholder="Filter by name or date..." 
+                    placeholder="Filter..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-white/10 border border-white/20 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:bg-white/20 focus:border-white/40 outline-none placeholder:text-white/30 transition-all w-48 md:w-64"
+                    className="bg-white/10 border border-white/20 rounded-lg pl-9 pr-4 py-1.5 text-[10px] md:text-xs font-bold focus:bg-white/20 focus:border-white/40 outline-none placeholder:text-white/30 transition-all w-32 md:w-64"
                   />
                 </div>
               </div>
@@ -317,29 +317,22 @@ export default function StockRegister() {
                     ) : inventory.filter(inv => {
                         const search = searchTerm.toLowerCase();
                         if (!search) return true;
+
                         const itemReceipts = monthlyReceipts.filter(r => r.item_name === inv.item_name);
                         const lastReceipt = itemReceipts.length > 0 ? itemReceipts[0].receipt_date : null;
-                        const displayDate = lastReceipt 
-                          ? new Date(lastReceipt).toLocaleDateString('en-GB')
-                          : (inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB') : '-');
-
+                        const displayDate = lastReceipt ? new Date(lastReceipt).toLocaleDateString('en-GB') : (inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB') : '-');
                         return inv.item_name.toLowerCase().includes(search) || displayDate.includes(search);
                       }).length === 0 ? (
-                      <tr><td colSpan={6} className="p-8 text-center text-sm font-bold text-slate-400">
-                        {searchTerm ? `No results for "${searchTerm}"` : 'No inventory data.'}
-                      </td></tr>
+                      <tr><td colSpan={6} className="p-8 text-center text-sm font-bold text-slate-400">No matching inventory.</td></tr>
                     ) : (
                       inventory
                         .filter(inv => {
                           const search = searchTerm.toLowerCase();
                           if (!search) return true;
-                          
+
                           const itemReceipts = monthlyReceipts.filter(r => r.item_name === inv.item_name);
                           const lastReceipt = itemReceipts.length > 0 ? itemReceipts[0].receipt_date : null;
-                          const displayDate = lastReceipt 
-                            ? new Date(lastReceipt).toLocaleDateString('en-GB')
-                            : (inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB') : '-');
-
+                          const displayDate = lastReceipt ? new Date(lastReceipt).toLocaleDateString('en-GB') : (inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB') : '-');
                           return inv.item_name.toLowerCase().includes(search) || displayDate.includes(search);
                         })
                         .map((inv) => {
@@ -370,7 +363,7 @@ export default function StockRegister() {
                                 </span>
                               </td>
                               <td className="p-4 text-center">
-                                <button onClick={() => handleDeleteInventoryItem(inv.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
+                                <button title="साठा हटवा (Delete Inventory Item)" onClick={() => handleDeleteInventoryItem(inv.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
                               </td>
                             </tr>
                           );
@@ -411,7 +404,7 @@ export default function StockRegister() {
                             <span className={`text-lg font-black tracking-tighter ${status.text}`}>
                                {balance < 0 ? `-${Math.abs(balance).toFixed(2)}` : balance.toFixed(2)} <span className="text-[10px] uppercase opacity-40">kg</span>
                             </span>
-                            <button onClick={() => handleDeleteInventoryItem(inv.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                            <button title="साठा हटवा (Delete Inventory Item)" onClick={() => handleDeleteInventoryItem(inv.id)} className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -429,7 +422,24 @@ export default function StockRegister() {
             <div className="bg-[#474379] -m-8 p-5 flex items-center justify-between text-white mb-8">
                <div className="flex items-center gap-3"><FileText size={24} /><h3 className="font-extrabold text-lg uppercase">Monthly Logistics Register</h3></div>
                <div className="flex items-center gap-3">
-                 <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="px-3 py-2 text-sm font-bold rounded text-[#474379] outline-none" />
+                 <select
+                   title="अहवालाचा महिना निवडा (Select Report Month)"
+                   value={Number(reportMonth.split('-')[1])}
+                   onChange={(e) => setReportMonth(`${reportMonth.split('-')[0]}-${String(e.target.value).padStart(2, '0')}`)}
+                   className="px-2 py-2 text-sm font-bold rounded text-[#474379] outline-none bg-white"
+                 >
+                   {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+                     <option key={i+1} value={i+1}>{m}</option>
+                   ))}
+                 </select>
+                 <select
+                   title="अहवालाचे वर्ष निवडा (Select Report Year)"
+                   value={Number(reportMonth.split('-')[0])}
+                   onChange={(e) => setReportMonth(`${e.target.value}-${reportMonth.split('-')[1]}`)}
+                   className="px-2 py-2 text-sm font-bold rounded text-[#474379] outline-none bg-white"
+                 >
+                   {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                 </select>
                  <button onClick={() => window.print()} className="bg-white text-[#474379] hover:bg-slate-100 px-4 py-2 rounded font-bold transition-colors flex items-center gap-2 text-sm shadow-sm"><Printer size={16} /> Print</button>
                </div>
             </div>
@@ -449,7 +459,7 @@ export default function StockRegister() {
                       <td className="p-3 border-r border-slate-200">{new Date(rec.receipt_date).toLocaleDateString()}</td>
                       <td className="p-3 border-r border-slate-200 uppercase">{foodNameMap[rec.item_name] || rec.item_name}</td>
                       <td className="p-3 text-right text-[#00a65a]">{Number(rec.quantity_kg).toFixed(2)} kg</td>
-                      <td className="p-3 text-center print:hidden"><button onClick={() => handleDeleteReceipt(rec.id, rec.item_name, rec.quantity_kg)} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button></td>
+                      <td className="p-3 text-center print:hidden"><button title="नोंद हटवा (Delete Receipt)" onClick={() => handleDeleteReceipt(rec.id, rec.item_name, rec.quantity_kg)} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button></td>
                     </tr>
                   ))}
                 </tbody>

@@ -8,7 +8,8 @@ import {
   FileText,
   Trash2,
   PlusCircle,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 
 const IconMap: Record<string, React.ElementType> = {
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
   const fetchGlobalFoods = async () => {
     setFoodLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('global_food_master')
         .select('*')
         .order('name', { ascending: true });
@@ -189,7 +190,7 @@ export default function AdminDashboard() {
   const deleteGlobalFood = async (code: string, name: string) => {
     if (!window.confirm(`Remove "${name}" from the Government List?`)) return;
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('global_food_master')
         .delete()
         .eq('code', code);
@@ -224,7 +225,7 @@ export default function AdminDashboard() {
 
     if (authData?.user) {
       // Step 2: Insert into Profiles specifically passing the new fields via raw cast
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await (supabase as any).from('profiles').insert({
         id: authData.user.id,
         email: newTeacher.email,
         role: 'teacher',
@@ -232,7 +233,7 @@ export default function AdminDashboard() {
         last_name: newTeacher.lastName,
         school_name: newTeacher.schoolName,
         school_id: newTeacher.schoolId
-      } as any);
+      });
 
       if (profileError) {
         setCreateMsg({ type: 'error', text: `Auth created but profile save failed: ${profileError.message}` });
@@ -270,7 +271,7 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('modules')} 
           className={`w-full text-left p-3.5 rounded-xl text-[14px] font-extrabold transition-all shadow-sm border ${
             activeTab === 'modules' 
-              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-500/30 border-orange-500' 
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-blue-500/30 border-blue-600' 
               : 'bg-white/80 text-slate-700 hover:border-blue-200 hover:text-blue-700 border-white/60'
           }`}
         >
@@ -282,7 +283,7 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('teachers')} 
           className={`w-full text-left p-3.5 rounded-xl text-[14px] font-extrabold transition-all shadow-sm border ${
             activeTab === 'teachers' 
-              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-500/30 border-orange-500' 
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-blue-500/30 border-blue-600' 
               : 'bg-white/80 text-slate-700 hover:border-blue-200 hover:text-blue-700 border-white/60'
           }`}
         >
@@ -294,7 +295,7 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('foodmaster')} 
           className={`w-full text-left p-3.5 rounded-xl text-[14px] font-extrabold transition-all shadow-sm border ${
             activeTab === 'foodmaster' 
-              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-500/30 border-orange-500' 
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-blue-500/30 border-blue-600' 
               : 'bg-white/80 text-slate-700 hover:border-blue-200 hover:text-blue-700 border-white/60'
           }`}
         >
@@ -306,48 +307,70 @@ export default function AdminDashboard() {
 
   return (
     <Layout sidebarLinks={adminSidebar}>
-      <div className="w-[95%] max-w-[1400px] mx-auto z-10 relative">
+      <div className="w-full max-w-[1400px] mx-auto z-10 relative px-4 md:px-6">
         
-        <div className="mb-6 text-left">
-          <h1 className="text-5xl font-black text-[#474379] tracking-tighter uppercase italic font-['Outfit']">
-            {activeTab === 'modules' ? 'System Configuration' 
-              : activeTab === 'teachers' ? 'Teacher Management Panel'
-              : 'Global Food Master'}
+        {/* Superior Mobile-Scrollable Navigation */}
+        <div className="mb-8 overflow-x-auto no-scrollbar -mx-4 px-4 sticky top-16 z-20 md:hidden pb-2">
+          <div className="flex bg-white/70 backdrop-blur-xl p-1.5 rounded-2xl border border-white min-w-max shadow-sm">
+            {[
+              { id: 'modules', label: 'Feature Access', icon: LayoutDashboard },
+              { id: 'teachers', label: 'Personnel Roster', icon: ClipboardList },
+              { id: 'foodmaster', label: 'Government List', icon: Package }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-3 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id ? 'bg-[#474379] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <tab.icon size={16} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-10 text-left">
+          <h1 className="text-3xl md:text-6xl font-black text-slate-900 tracking-tighter uppercase italic leading-none mb-3">
+            {activeTab === 'modules' ? 'System <span className="text-blue-600 underline decoration-blue-200">Matrix</span>' 
+              : activeTab === 'teachers' ? 'Official <span className="text-blue-600 underline decoration-blue-200">Roster</span>'
+              : 'Global <span className="text-blue-600 underline decoration-blue-200">Registry</span>'}
           </h1>
-          <p className="text-slate-400 font-bold mt-1 text-[10px] uppercase tracking-widest">Enterprise Administrative Control Hub</p>
+          <p className="text-[10px] md:text-sm font-black text-slate-400 uppercase tracking-[0.4em]">Enterprise Administrative Control Hub</p>
         </div>
 
         {/* Modules Tab */}
         {activeTab === 'modules' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {modules.map((module) => {
               const isActive = module.is_active_for_teachers;
               const IconComponent = IconMap[module.icon_name] || LayoutDashboard;
 
               return (
-                <div key={module.id} className="bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-white/60 hover:border-blue-200 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col group relative overflow-hidden">
-                  <div className={`absolute -top-12 -right-12 w-32 h-32 blur-3xl opacity-20 rounded-full pointer-events-none transition-colors duration-500 ${isActive ? 'bg-orange-500' : 'bg-slate-400'}`}></div>
-                  <div className="bg-blue-50 text-blue-600 p-4 rounded-2xl w-fit mb-6 shadow-md border border-blue-100 group-hover:scale-110 group-hover:shadow-blue-200/50 transition-all duration-300 relative z-10">
-                    <IconComponent size={24} strokeWidth={2.5} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-tight relative z-10">{module.module_name}</h3>
-                  <p className="text-[11px] font-bold text-slate-500 font-mono bg-slate-100/80 px-3 py-1.5 rounded-lg w-fit truncate mb-8 border border-slate-200/60 shadow-inner relative z-10">
-                    ROUTE: {module.route_path}
-                  </p>
-                  <div className="mt-auto pt-6 border-t border-slate-200/60 flex items-center justify-between relative z-10">
-                    <span className={`text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm ${isActive ? 'bg-green-100 text-green-700 border border-green-200/50' : 'bg-slate-200 text-slate-500 border border-slate-300/50'}`}>
-                      {isActive ? 'Active' : 'Disabled'}
-                    </span>
+                <div key={module.id} className="bg-white p-8 md:p-10 rounded-[40px] shadow-2xl hover:shadow-blue-100 transition-all duration-500 border border-slate-50 flex flex-col group relative overflow-hidden">
+                  <div className="flex justify-between items-start mb-8">
+                    <div className={`p-5 rounded-3xl transition-all duration-500 ${isActive ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 'bg-slate-100 text-slate-400'}`}>
+                      <IconComponent size={32} />
+                    </div>
                     <button
+                      title={isActive ? "Deactivate Module" : "Activate Module"}
                       onClick={() => toggleModule(module.id, isActive)}
-                      className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none shadow-inner ${
-                        isActive ? 'bg-gradient-to-r from-orange-500 to-orange-400' : 'bg-slate-300'
-                      }`}
+                      className={`w-14 h-7 rounded-full transition-all relative ${isActive ? 'bg-green-500 shadow-inner' : 'bg-slate-200'}`}
                     >
-                      <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
-                        isActive ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
+                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${isActive ? 'left-8' : 'left-1'}`} />
                     </button>
+                  </div>
+
+                  <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tighter italic leading-none">{module.module_name}</h3>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-6">ROUTE: {module.route_path}</p>
+                  
+                  <p className="text-sm font-bold text-slate-500 leading-relaxed mb-8">
+                    {module.description}
+                  </p>
+
+                  <div className="mt-auto pt-6 border-t border-slate-50 flex items-center">
+                    <span className={`text-[10px] font-black px-4 py-2 rounded-2xl uppercase tracking-widest ${isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                      {isActive ? 'Active Node' : 'Access Restricted'}
+                    </span>
                   </div>
                 </div>
               );
@@ -365,152 +388,163 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* CET Top Action Bar */}
-            <div className="bg-white p-5 border-t-4 border-[#474379] shadow-lg flex justify-between items-center mb-6 rounded-none transform transition-all hover:translate-y-[-2px]">
-              <span className="font-black text-[#474379] uppercase tracking-widest text-[11px]">Personnel Global Roster</span>
+            {/* Top Action Bar */}
+            <div className="bg-white/80 backdrop-blur-xl p-5 md:p-10 rounded-[40px] shadow-xl border border-white flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-600 p-4 rounded-3xl text-white shadow-lg shadow-blue-200">
+                   <ClipboardList size={24} />
+                </div>
+                <div>
+                   <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter leading-none italic">Personnel Roster</h2>
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Active Teaching Faculty Registry</p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="bg-[#3c8dbc] hover:bg-[#2e7da6] text-white px-8 py-3 rounded-none font-black shadow-xl shadow-blue-500/20 transition-all text-xs flex items-center gap-3 uppercase tracking-widest active:scale-95"
+                className="w-full md:w-auto bg-slate-900 hover:bg-slate-800 text-white px-10 py-5 rounded-3xl font-black shadow-2xl transition-all text-xs flex items-center justify-center gap-4 uppercase tracking-[0.2em] active:scale-95"
               >
-                ＋ Register New Personnel
+                <PlusCircle size={24} /> Register New Member
               </button>
             </div>
 
             {/* CET Creation Form Modal */}
             {showCreateForm && (
-              <div className="bg-white border-2 border-[#3c8dbc] p-6 mb-6 shadow-md rounded-none relative">
-                
+              <div className="bg-white p-6 md:p-12 mb-10 shadow-2xl rounded-[40px] border border-slate-100 relative animate-in slide-in-from-top-10 duration-500">
                 <button 
+                  title="Close Form"
                   onClick={() => setShowCreateForm(false)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-red-500 font-bold px-2 py-1"
+                  className="absolute top-6 right-6 md:top-10 md:right-10 bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 p-3 rounded-2xl transition-all"
                 >
-                  ✕ Close
+                  <X size={24} />
                 </button>
 
-                <h3 className="text-xl font-extrabold text-[#474379] mb-5 border-b border-slate-200 pb-3">Register Official Personnel</h3>
+                <h3 className="text-2xl font-black text-slate-900 mb-10 flex items-center gap-3 uppercase italic tracking-tighter">
+                   <PlusCircle className="text-blue-600" size={32} /> Deployment Form
+                </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
-                  {/* Column 1 */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">First Name</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-10">
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest block ml-1">Official Credentials</label>
                       <input 
                         type="text" 
                         value={newTeacher.firstName}
                         onChange={e => setNewTeacher({...newTeacher, firstName: e.target.value})}
-                        className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-shadow text-[#2d3748]" 
-                        placeholder="e.g. Rahul"
+                        className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800" 
+                        placeholder="First Name (e.g. Rahul)"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Last Name</label>
+
                       <input 
                         type="text" 
                         value={newTeacher.lastName}
                         onChange={e => setNewTeacher({...newTeacher, lastName: e.target.value})}
-                        className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-shadow text-[#2d3748]" 
-                        placeholder="e.g. Patil"
+                        className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800" 
+                        placeholder="Last Name (e.g. Patil)"
                       />
+
                       <input 
                         type="email" 
                         value={newTeacher.email}
                         onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
-                        className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-shadow text-[#2d3748]" 
-                        placeholder="teacher@school.edu.in"
+                        className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800" 
+                        placeholder="teacher@gov.in"
                       />
                     </div>
                   </div>
-                  
-                  {/* Column 2 */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">School Name</label>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest block ml-1">Workplace & Security</label>
                       <input 
                         type="text" 
                         value={newTeacher.schoolName}
                         onChange={e => setNewTeacher({...newTeacher, schoolName: e.target.value})}
-                        className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-shadow text-[#2d3748]" 
-                        placeholder="e.g. ZP Primary School"
+                        className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800" 
+                        placeholder="School Name (ZP Primary)"
                       />
+
                       <input 
                         type="text" 
                         value={newTeacher.schoolId}
                         onChange={e => setNewTeacher({...newTeacher, schoolId: e.target.value})}
-                        className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-shadow text-[#2d3748]" 
+                        className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800" 
                         placeholder="11-digit UDISE Code"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Secure Password</label>
+
                       <input 
                         type="password" 
                         value={newTeacher.password}
                         onChange={e => setNewTeacher({...newTeacher, password: e.target.value})}
-                        className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-shadow text-[#2d3748]" 
-                        placeholder="••••••••"
+                        className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800" 
+                        placeholder="Secure Password"
                       />
                     </div>
                   </div>
                 </div>
                 
-                <div className="text-right border-t border-slate-200 pt-5">
+                <div className="pt-8 border-t border-slate-50">
                    <button 
                      onClick={handleCreateTeacher} 
-                     className="bg-[#00a65a] hover:bg-[#008d4c] text-white px-8 py-3 rounded font-extrabold transition-colors shadow-sm text-sm uppercase tracking-wider"
+                     className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-12 py-6 rounded-3xl font-black transition-all shadow-2xl text-xs uppercase tracking-[0.3em] active:scale-[0.98]"
                    >
-                     Deploy Teacher Credentials
+                     Initialize Credentials
                    </button>
                 </div>
               </div>
             )}
 
-            {/* CET Teacher List Table */}
-            <div className="bg-white border border-slate-300 shadow-sm rounded-none overflow-hidden">
+            {/* Adaptive Personnel Roster */}
+            <div className="hidden md:block bg-white/50 backdrop-blur-xl border border-white rounded-[40px] shadow-2xl overflow-hidden mb-10">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-[#f8fafc] border-b border-slate-300">
-                      <th className="p-4 text-xs font-bold text-[#474379] uppercase tracking-wider text-left border-r border-slate-200">Name</th>
-                      <th className="p-4 text-xs font-bold text-[#474379] uppercase tracking-wider text-left border-r border-slate-200">School Name</th>
-                      <th className="p-4 text-xs font-bold text-[#474379] uppercase tracking-wider text-left border-r border-slate-200">School ID</th>
-                      <th className="p-4 text-xs font-bold text-[#474379] uppercase tracking-wider text-left border-r border-slate-200">Email</th>
-                      <th className="p-4 text-xs font-bold text-[#474379] uppercase tracking-wider text-left">Date Registered</th>
+                    <tr className="bg-slate-900 border-b border-white/10">
+                      <th className="p-6 text-xs font-black text-white uppercase tracking-widest text-left">Personnel Information</th>
+                      <th className="p-6 text-xs font-black text-white uppercase tracking-widest text-left">Workplace Station</th>
+                      <th className="p-6 text-xs font-black text-white uppercase tracking-widest text-left">Station ID</th>
+                      <th className="p-6 text-xs font-black text-white uppercase tracking-widest text-left">Official Email</th>
+                      <th className="p-6 text-xs font-black text-white uppercase tracking-widest text-left">Since</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.map((t, index) => {
-                      const first = (t as any).first_name || '';
-                      const last = (t as any).last_name || '';
-                      const name = `${first} ${last}`.trim() || 'Data Unavailable';
-                      const school = (t as any).school_name || 'Unassigned';
-                      const uId = (t as any).school_id || 'N/A';
-
+                    {teachers.map((t) => {
+                      const name = `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Data Incomplete';
                       return (
-                        <tr key={t.id} className={`border-b border-slate-200 hover:bg-slate-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                          <td className="p-4 text-[13px] font-bold text-slate-800 border-r border-slate-200">{name}</td>
-                          <td className="p-4 text-[13px] font-medium text-slate-700 border-r border-slate-200">{school}</td>
-                          <td className="p-4 text-[13px] font-mono text-slate-600 border-r border-slate-200">{uId}</td>
-                          <td className="p-4 text-[13px] font-medium text-blue-600 border-r border-slate-200">{t.email}</td>
-                          <td className="p-4 text-[13px] font-semibold text-slate-500">
-                            {new Date(t.created_at || new Date()).toLocaleDateString('en-GB', {
-                              year: 'numeric', month: 'short', day: 'numeric'
-                            }).replace(/ /g, '-')}
+                        <tr key={t.id} className="border-b border-slate-50 hover:bg-white transition-colors group">
+                          <td className="p-6 font-black text-slate-800 uppercase italic text-[13px]">{name}</td>
+                          <td className="p-6 font-bold text-slate-500 text-[12px] uppercase">{t.school_name || 'Unassigned'}</td>
+                          <td className="p-6 font-mono text-slate-400 text-[11px]">{t.school_id || '—'}</td>
+                          <td className="p-6 font-bold text-blue-600 text-[12px]">{t.email}</td>
+                          <td className="p-6 font-black text-slate-400 text-[10px] uppercase">
+                            {new Date(t.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                           </td>
                         </tr>
                       );
                     })}
-                    {teachers.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center font-bold text-slate-400 bg-slate-50">
-                          No teaching personnel found in the active registry.
-                        </td>
-                      </tr>
-                    )}
+
                   </tbody>
                 </table>
               </div>
             </div>
 
+            {/* Mobile Cards fallback */}
+            <div className="md:hidden space-y-4 mb-10">
+               {teachers.map(t => (
+                 <div key={t.id} className="bg-white p-6 rounded-[30px] border border-slate-100 shadow-xl shadow-slate-900/5">
+                    <div className="flex justify-between items-start mb-4">
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">School: {t.school_id || 'N/A'}</span>
+                       <span className="text-[9px] font-black text-blue-500 uppercase">{new Date(t.created_at).toLocaleDateString('en-GB')}</span>
+                    </div>
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter italic mb-1">{t.first_name} {t.last_name}</h3>
+                    <p className="text-sm font-bold text-slate-500 uppercase mb-4">{t.school_name}</p>
+                    <div className="pt-4 border-t border-slate-50 flex items-center gap-3">
+                       <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ClipboardList size={16} /></div>
+                       <span className="text-xs font-black text-blue-600 truncate">{t.email}</span>
+                    </div>
+                 </div>
+               ))}
+               {teachers.length === 0 && <p className="text-center p-10 font-black text-slate-400 uppercase tracking-[0.2em] italic">No active personnel found.</p>}
+            </div>
           </div>
         )}
 
@@ -528,156 +562,127 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* Add New Food Form */}
-            <div className="bg-white border-t-4 border-[#474379] shadow-sm p-5 mb-5">
-              <h3 className="text-sm font-extrabold text-[#474379] uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 flex items-center gap-2">
-                <PlusCircle size={16} /> Add New Food Item to Government List
-              </h3>
-              <form onSubmit={addGlobalFood} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">
-                      नाव (Marathi) <span className="text-red-400">*</span>
-                    </label>
+            {/* Global Food Master Panel */}
+            <div className="bg-white/90 backdrop-blur-xl p-5 md:p-10 rounded-[40px] shadow-2xl border border-white mb-10 overflow-hidden relative">
+               <div className="bg-slate-900 absolute top-0 left-0 right-0 h-2" />
+               <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter mb-8 flex items-center gap-3">
+                  <PlusCircle className="text-blue-600" size={32} /> Government Food Repository
+               </h3>
+               
+               <form onSubmit={addGlobalFood} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Marathi Designation</label>
                     <input
-                      type="text"
-                      required
-                      value={newFoodName}
+                      type="text" required value={newFoodName}
                       onChange={e => handleNameChange(e.target.value, 'mr')}
-                      className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#474379] focus:ring-1 focus:ring-[#474379] text-[#2d3748]"
-                      placeholder="e.g. मुगाची डाळ"
+                      className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800"
+                      placeholder="उदा. मुगाची डाळ"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">
-                      Name (English) <span className="text-red-400">*</span>
-                    </label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">English Designation</label>
                     <input
-                      type="text"
-                      required
-                      value={newFoodNameEn}
+                      type="text" required value={newFoodNameEn}
                       onChange={e => handleNameChange(e.target.value, 'en')}
-                      className="w-full border border-slate-300 p-2.5 text-sm font-medium focus:outline-none focus:border-[#474379] focus:ring-1 focus:ring-[#474379] text-[#2d3748]"
+                      className="w-full bg-slate-50 border-2 border-slate-100 p-5 rounded-2xl text-sm font-black focus:outline-none focus:border-blue-500 transition-all text-slate-800"
                       placeholder="e.g. Moong Dal"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-4 border border-slate-200 rounded-sm">
-                  <div className="flex-1 w-full">
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">
-                      System Generated Food Code
-                    </label>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
+                  <div className="lg:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">System Serial Identification</label>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <input
-                        type="text"
-                        readOnly
-                        value={newFoodCode}
-                        className="flex-1 border border-slate-300 p-2.5 text-sm font-mono font-bold bg-slate-200 text-slate-500 uppercase cursor-not-allowed"
-                        placeholder="e.g. F_MOONGDAL (Click Generate)"
+                        type="text" readOnly value={newFoodCode}
+                        className="flex-1 bg-slate-100 border-2 border-slate-100 p-5 rounded-2xl text-sm font-mono font-black text-slate-400 uppercase"
+                        placeholder="Click Generate to Validatate..."
                       />
                       <button
-                        type="button"
-                        onClick={handleGenerateCode}
-                        className="bg-[#3c8dbc] hover:bg-[#2e7da6] text-white px-5 py-2.5 font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                        type="button" onClick={handleGenerateCode}
+                        className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95"
                       >
-                        Generate & Validate
+                        Generate & Verify
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex-1 w-full md:w-auto">
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wide">श्रेणी (Category)</label>
-                    <div className="flex gap-2">
-                       <label className={`flex-1 flex items-center justify-center gap-2 p-2.5 border-2 cursor-pointer transition-all ${newFoodCategory === 'MAIN' ? 'border-[#3c8dbc] bg-blue-50 text-[#3c8dbc]' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
-                          <input 
-                            type="radio" name="gCategory" value="MAIN" className="hidden"
-                            checked={newFoodCategory === 'MAIN'} onChange={() => setNewFoodCategory('MAIN')}
-                          />
-                          <span className="text-[10px] font-black uppercase whitespace-nowrap">Main Food (मुख्य)</span>
-                       </label>
-                       <label className={`flex-1 flex items-center justify-center gap-2 p-2.5 border-2 cursor-pointer transition-all ${newFoodCategory === 'INGREDIENT' ? 'border-slate-400 bg-slate-100 text-slate-600' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
-                          <input 
-                            type="radio" name="gCategory" value="INGREDIENT" className="hidden"
-                            checked={newFoodCategory === 'INGREDIENT'} onChange={() => setNewFoodCategory('INGREDIENT')}
-                          />
-                          <span className="text-[10px] font-black uppercase whitespace-nowrap">Ingredient (साहित्य)</span>
-                       </label>
-                    </div>
+                  <div className="w-full">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Stock Category</label>
+                     <div className="flex bg-slate-50 p-1.5 rounded-2xl border-2 border-slate-100">
+                        <button 
+                          type="button" onClick={() => setNewFoodCategory('MAIN')}
+                          className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${newFoodCategory === 'MAIN' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400'}`}
+                        >MAIN</button>
+                        <button 
+                          type="button" onClick={() => setNewFoodCategory('INGREDIENT')}
+                          className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${newFoodCategory === 'INGREDIENT' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400'}`}
+                        >INGREDIENT</button>
+                     </div>
                   </div>
-                  
-                  <div className="flex-shrink-0 w-full md:w-auto">
-                    <button
-                      type="submit"
-                      disabled={!isCodeValidated}
-                      className="w-full md:w-auto bg-[#474379] hover:bg-[#34305c] disabled:bg-slate-300 disabled:text-slate-500 text-white px-10 py-3 rounded-none font-black text-xs transition-all shadow-xl shadow-slate-900/10 flex justify-center items-center gap-3 h-[48px] uppercase tracking-widest active:scale-95"
-                    >
-                      <PlusCircle size={16} /> Deploy to Government List
-                    </button>
-                  </div>
+
                 </div>
-              </form>
+                
+                <button
+                  type="submit" disabled={!isCodeValidated}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white py-6 rounded-3xl font-black text-xs md:text-sm uppercase tracking-[0.3em] transition-all shadow-2xl shadow-blue-200 disabled:opacity-50 active:scale-[0.98]"
+                >
+                  Confirm Deployment to Roster
+                </button>
+               </form>
             </div>
 
-            {/* Food Master Table */}
-            <div className="bg-white border border-slate-300 shadow-sm overflow-hidden">
-              <div className="bg-[#474379] p-4 flex justify-between items-center">
-                <span className="font-bold text-white uppercase tracking-wider text-[13px]">
-                  🏛 शासकीय खाद्यपदार्थ यादी — Government Food Register
-                </span>
-                <span className="text-white/60 text-xs bg-white/10 px-3 py-1">
-                  {globalFoods.length} Items
+            {/* Adaptive Food Master Registry */}
+            <div className="hidden md:block bg-white border border-slate-200 shadow-2xl rounded-[40px] overflow-hidden mb-10">
+              <div className="bg-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-white/10 rounded-lg text-white"><Package size={20} /></div>
+                   <span className="font-black text-white uppercase tracking-widest text-sm italic">🏛 Official Government Register</span>
+                </div>
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full border border-white/10">
+                  {globalFoods.length} Nodes Online
                 </span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-[#f8fafc] border-b border-slate-300">
-                      <th className="p-4 text-[11px] font-extrabold text-[#3c8dbc] uppercase tracking-widest text-left border-r border-slate-200 w-36">Code</th>
-                      <th className="p-4 text-[11px] font-extrabold text-[#3c8dbc] uppercase tracking-widest text-left border-r border-slate-200">नाम (Marathi) / श्रेणी</th>
-                      <th className="p-4 text-[11px] font-extrabold text-[#3c8dbc] uppercase tracking-widest text-left border-r border-slate-200">Name (English)</th>
-                      <th className="p-4 text-[11px] font-extrabold text-[#3c8dbc] uppercase tracking-widest text-center w-24">Action</th>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="p-6 text-[11px] font-black text-slate-500 uppercase tracking-widest text-left w-48">System Identifier</th>
+                      <th className="p-6 text-[11px] font-black text-slate-500 uppercase tracking-widest text-left">Nomenclature & Designation</th>
+                      <th className="p-6 text-[11px] font-black text-slate-500 uppercase tracking-widest text-left">International Ref</th>
+                      <th className="p-6 text-[11px] font-black text-slate-500 uppercase tracking-widest text-center w-32">Action Matrix</th>
                     </tr>
                   </thead>
                   <tbody>
                     {foodLoading ? (
                       <tr>
-                        <td colSpan={4} className="p-8 text-center font-bold text-slate-400">
-                          <Loader2 className="animate-spin inline mr-2" size={16} />Loading...
-                        </td>
-                      </tr>
-                    ) : globalFoods.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="p-8 text-center font-bold text-slate-400 bg-slate-50">
-                          No food items in the Government List.
+                        <td colSpan={4} className="p-10 text-center">
+                          <Loader2 className="animate-spin text-blue-600 mx-auto" size={32} />
                         </td>
                       </tr>
                     ) : (
-                      globalFoods.map((food, index) => (
-                        <tr
-                          key={food.code}
-                          className={`border-b border-slate-200 hover:bg-slate-50 transition-colors ${
-                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
-                          }`}
-                        >
-                          <td className="p-4 text-[12px] font-mono font-black text-[#474379] border-r border-slate-200">{food.code}</td>
-                          <td className="p-4 border-r border-slate-200">
-                             <div className="flex flex-col gap-1">
-                                <span className="text-[14px] font-bold text-slate-800">{food.name}</span>
-                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded w-fit ${food.item_category === 'MAIN' ? 'bg-blue-600 text-white' : 'bg-slate-400 text-white'}`}>
-                                   {food.item_category === 'MAIN' ? 'MAIN FOOD' : 'INGREDIENT'}
+                      globalFoods.map((food) => (
+                        <tr key={food.code} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
+                          <td className="p-6 font-mono font-black text-blue-600 text-[12px] uppercase">{food.code}</td>
+                          <td className="p-6">
+                             <div className="flex flex-col gap-1.5">
+                                <span className="text-[15px] font-black text-slate-800 italic uppercase tracking-tighter">{food.name}</span>
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md w-fit shadow-sm border ${food.item_category === 'MAIN' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-white border-slate-700'}`}>
+                                   {food.item_category === 'MAIN' ? 'Primary Commodity' : 'Utility Ingredient'}
                                 </span>
                              </div>
                           </td>
-                          <td className="p-4 text-[13px] font-medium text-slate-500 border-r border-slate-200">{food.name_en || '—'}</td>
+                          <td className="p-6 font-bold text-slate-400 text-[13px] uppercase tracking-tight">{food.name_en || '—'}</td>
                           <td className="p-4 text-center">
                             <button
+                              title={`Delete ${food.name}`}
                               onClick={() => deleteGlobalFood(food.code, food.name)}
-                              className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded transition-colors inline-flex justify-center items-center"
-                              title="Remove from Government List"
+                              className="text-slate-300 hover:text-red-600 transition-all transform hover:scale-110"
                             >
-                              <Trash2 size={15} strokeWidth={2.5} />
+                              <Trash2 size={20} />
                             </button>
                           </td>
                         </tr>
@@ -686,6 +691,31 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile Cards fallback for Food Master */}
+            <div className="md:hidden space-y-4 mb-10">
+               {globalFoods.map(food => (
+                 <div key={food.code} className="bg-white p-6 rounded-[30px] border border-slate-100 shadow-xl relative overflow-hidden">
+                    <div className={`absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10 rounded-full ${food.item_category === 'MAIN' ? 'bg-blue-600' : 'bg-slate-800'}`}></div>
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                       <span className="text-[10px] font-mono font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{food.code}</span>
+                       <button 
+                         title={`Delete ${food.name}`}
+                         onClick={() => deleteGlobalFood(food.code, food.name)} 
+                         className="text-slate-300 active:text-red-500 p-1"
+                       ><Trash2 size={18} /></button>
+                    </div>
+                    <h3 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter mb-1 relative z-10">{food.name}</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-4 relative z-10">{food.name_en}</p>
+                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between relative z-10">
+                       <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${food.item_category === 'MAIN' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-white'}`}>
+                          {food.item_category === 'MAIN' ? 'Main Food' : 'Ingredient'}
+                       </span>
+                    </div>
+                 </div>
+               ))}
+               {!foodLoading && globalFoods.length === 0 && <p className="text-center p-10 font-black text-slate-400 uppercase tracking-widest italic">Global list is empty.</p>}
             </div>
 
           </div>

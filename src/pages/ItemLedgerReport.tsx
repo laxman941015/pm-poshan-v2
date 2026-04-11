@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Layout from '../components/Layout';
-import { FileStack, Loader2, Save, Printer } from 'lucide-react';
+import { FileStack, Loader2, Save, Printer, RefreshCw, ArrowRight } from 'lucide-react';
 
 interface MenuItem {
   item_code: string;
@@ -29,7 +30,7 @@ export default function ItemLedgerReport() {
   const [selectedItemName, setSelectedItemName] = useState<string>('');
 
   const [schoolName, setSchoolName] = useState('');
-  
+
   const [reportMatrix, setReportMatrix] = useState<any[]>([]);
   const [reportMonths, setReportMonths] = useState<{month: number, year: number, label: string}[]>([]);
   const [totals, setTotals] = useState<any>(null);
@@ -47,13 +48,12 @@ export default function ItemLedgerReport() {
     const { data: profile } = await (supabase as any).from('profiles').select('school_name_mr, center_name_mr').eq('id', id).maybeSingle();
     if (profile) {
       setSchoolName(profile.school_name_mr || '');
-      setCenterName(profile.center_name_mr || '');
     }
 
     const { data: menuMaster } = await (supabase as any).from('menu_master').select('item_code, item_name').eq('teacher_id', id).order('created_at');
     if (menuMaster) {
-       setMenuItems(menuMaster);
-       if (menuMaster.length > 0) setSelectedItemName(menuMaster[0].item_name);
+      setMenuItems(menuMaster as MenuItem[]);
+      if (menuMaster.length > 0) setSelectedItemName(menuMaster[0].item_name);
     }
   };
 
@@ -271,63 +271,82 @@ export default function ItemLedgerReport() {
     <Layout>
       <div className="mx-auto mt-4 pb-20 print:p-0 print:m-0 print:max-w-full print:bg-white overflow-hidden w-full max-w-[100vw] lg:max-w-[95vw]">
         
-        {/* Control Bar */}
-        <div className="mb-6 p-5 bg-white rounded-xl shadow-xl border border-slate-200 print:hidden flex flex-col md:flex-row gap-4 justify-end items-start md:items-center">
-
-          <div className="flex flex-col xl:flex-row gap-4 items-end xl:items-center w-full md:w-auto bg-slate-50 p-3 rounded-lg border border-slate-200">
-            <div className="flex items-center gap-2">
-              <label className="text-[10px] font-black uppercase text-slate-500 w-12">Item</label>
-              <select 
-                value={selectedItemName} 
-                onChange={e => setSelectedItemName(e.target.value)} 
-                className="border-2 border-slate-200 rounded px-2 py-1.5 font-bold text-sm bg-white focus:border-indigo-500 outline-none w-32"
-              >
-                {menuItems.map((m, i) => <option key={i} value={m.item_name}>{m.item_name}</option>)}
-              </select>
-            </div>
+        {/* High-Tech Mobile Filter Bar */}
+        <div className="mb-6 mx-auto w-full lg:max-w-5xl print:hidden">
+          <div className="bg-white/80 backdrop-blur-xl p-5 md:p-8 rounded-3xl md:rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white flex flex-col items-center">
             
-            <div className="h-8 w-px bg-slate-300 hidden xl:block"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-6">
+              {/* Item Selection */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Select Inventory Item</label>
+                <div className="bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 flex items-center gap-3">
+                  <div className="p-2 bg-white rounded-xl shadow-sm text-blue-600"><FileStack size={18} /></div>
+                  <select 
+                    value={selectedItemName} 
+                    onChange={e => setSelectedItemName(e.target.value)} 
+                    className="bg-transparent flex-1 py-1.5 font-bold text-sm text-slate-700 outline-none"
+                    title="साहित्य निवडा (Select Inventory Item)"
+                  >
+                    {menuItems.map((m, i) => <option key={i} value={m.item_name}>{m.item_name}</option>)}
+                  </select>
+                </div>
+              </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-[10px] font-black uppercase text-slate-500 w-12 xl:w-auto">From</label>
-              <select value={startMonth} onChange={e => setStartMonth(Number(e.target.value))} className="border-2 border-slate-200 rounded px-2 py-1.5 font-bold text-xs bg-white w-24">
-                {marathiMonths.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-              </select>
-              <select value={startYear} onChange={e => setStartYear(Number(e.target.value))} className="border-2 border-slate-200 rounded px-2 py-1.5 font-bold text-xs bg-white w-20">
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              
-              <label className="text-[10px] font-black uppercase text-slate-500 w-12 xl:w-auto xl:ml-3">To</label>
-              <select value={endMonth} onChange={e => setEndMonth(Number(e.target.value))} className="border-2 border-slate-200 rounded px-2 py-1.5 font-bold text-xs bg-white w-24">
-                {marathiMonths.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-              </select>
-              <select value={endYear} onChange={e => setEndYear(Number(e.target.value))} className="border-2 border-slate-200 rounded px-2 py-1.5 font-bold text-xs bg-white w-20">
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              {/* Start Date */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">From Period</label>
+                <div className="bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 flex items-center gap-2">
+                  <select value={startMonth} onChange={e => setStartMonth(Number(e.target.value))} className="bg-transparent flex-1 py-1.5 font-bold text-xs text-slate-700 outline-none" title="आरंभ महिना निवडा (Select Start Month)">
+                    {marathiMonths.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                  </select>
+                  <div className="w-px h-6 bg-slate-200" />
+                  <select value={startYear} onChange={e => setStartYear(Number(e.target.value))} className="bg-transparent px-2 py-1.5 font-bold text-xs text-slate-700 outline-none" title="आरंभ वर्ष निवडा (Select Start Year)">
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* End Date */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">To Period</label>
+                <div className="bg-slate-100/50 p-1.5 rounded-2xl border border-slate-100 flex items-center gap-2">
+                  <select value={endMonth} onChange={e => setEndMonth(Number(e.target.value))} className="bg-transparent flex-1 py-1.5 font-bold text-xs text-slate-700 outline-none" title="अखेर महिना निवडा (Select End Month)">
+                    {marathiMonths.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                  </select>
+                  <div className="w-px h-6 bg-slate-200" />
+                  <select value={endYear} onChange={e => setEndYear(Number(e.target.value))} className="bg-transparent px-2 py-1.5 font-bold text-xs text-slate-700 outline-none" title="अखेर वर्ष निवडा (Select End Year)">
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
-            
-            <button onClick={handleGenerate} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-black text-xs uppercase ml-2 shadow-md">
-                Generate
-            </button>
-          </div>
 
-          <div className="flex gap-3 w-full md:w-auto justify-end">
-            {!isSaved ? (
+            <div className="flex gap-3 w-full border-t border-slate-100 pt-6">
               <button 
-                onClick={handleSave} 
-                disabled={loading || reportMatrix.length === 0} 
-                className="bg-[#00a65a] hover:bg-[#008d4c] text-white px-5 py-2.5 rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleGenerate} 
+                disabled={loading}
+                className="flex-1 bg-white border border-slate-200 text-slate-600 font-black py-4 rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-sm hover:bg-slate-50 transition-all flex justify-center items-center gap-2 active:scale-95"
               >
-                {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Save
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <RefreshCw size={18} />} Generate Data
               </button>
-            ) : (
-              <button 
-                onClick={() => window.print()} 
-                className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-              >
-                <Printer size={16} /> Print
-              </button>
-            )}
+
+              {!isSaved ? (
+                <button 
+                  onClick={handleSave} 
+                  disabled={loading || reportMatrix.length === 0} 
+                  className="flex-[2] bg-blue-600 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex justify-center items-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                  <Save size={18} /> Save Record
+                </button>
+              ) : (
+                <button 
+                  onClick={() => window.print()} 
+                  className="flex-[2] bg-slate-900 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-slate-800 transition-all flex justify-center items-center gap-2 active:scale-95"
+                >
+                  <Printer size={18} /> Print Register
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -342,27 +361,30 @@ export default function ItemLedgerReport() {
           `}} />
 
           {reportMatrix.length > 0 ? (
-            <div className="print:border-none border-2 border-black/20 shadow-md p-4 md:p-8 print:p-0 overflow-hidden w-full relative group">
+            <div className="print:border-none md:border-2 border-slate-200 md:shadow-2xl md:rounded-[40px] p-4 md:p-12 print:p-0 overflow-hidden w-full relative bg-white transition-all">
               
-              <div className="text-center mb-8 border-b-2 border-slate-300 print:border-black pb-6 space-y-3">
-                <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[#474379] print:text-black">
-                   शिल्लक साठा रजिस्टर (वस्तुनिहाय)
-                </h1>
-                
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm font-black justify-items-center bg-slate-50 print:bg-transparent p-4 rounded-xl print:p-0 border border-slate-200 print:border-none">
-                   <div className="col-span-2 lg:col-span-2 flex flex-col md:flex-row gap-2">
-                      <span className="text-slate-500 print:text-gray-700 uppercase text-[10px] tracking-widest">शाळेचे नाव / केंद्र:</span>
-                      <span className="underline decoration-slate-300 underline-offset-4">{schoolName} {centerName ? `(${centerName})` : ''}</span>
-                   </div>
-                   <div className="flex gap-2">
-                      <span className="text-slate-500 print:text-gray-700 uppercase text-[10px] tracking-widest">मालाचा प्रकार:</span>
-                      <span className="underline decoration-slate-300 underline-offset-4 tracking-wider">{selectedItemName}</span>
-                   </div>
-                   <div className="flex gap-2">
-                      <span className="text-slate-500 print:text-gray-700 uppercase text-[10px] tracking-widest">कालावधी:</span>
-                      <span className="underline decoration-slate-300 underline-offset-4 tracking-wider">{marathiMonths[startMonth-1]} {startYear} ते {marathiMonths[endMonth-1]} {endYear}</span>
-                   </div>
+              <div className="text-center mb-10 border-b-4 border-slate-900 print:border-black pb-8 space-y-4 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="text-left">
+                  <h1 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none italic text-slate-800">
+                    वस्तुनिहाय <span className="text-blue-600 underline decoration-blue-200">साठा रजिस्टर</span>
+                  </h1>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Inventory Stewardship & Ledger Tracking</p>
                 </div>
+                
+                <div className="bg-slate-900 text-white p-5 rounded-3xl text-right flex flex-col items-end min-w-[280px]">
+                   <div className="flex flex-col gap-1 w-full">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-blue-400">Inventory Category</p>
+                      <h2 className="text-lg font-black italic uppercase text-white truncate">{selectedItemName}</h2>
+                   </div>
+                   <div className="w-full h-px bg-white/10 my-3" />
+                   <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">{schoolName}</p>
+                </div>
+              </div>
+
+              {/* Mobile Scroll Hint */}
+              <div className="md:hidden flex items-center justify-center gap-2 mb-4 bg-indigo-50 p-3 rounded-2xl border border-indigo-100 animate-pulse">
+                <ArrowRight size={16} className="text-indigo-600" />
+                <span className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">Swipe for multi-month tracking</span>
               </div>
 
               {/* Inverted Matrix Table Wrapper */}

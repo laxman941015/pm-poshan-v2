@@ -75,8 +75,8 @@ export default function TeacherMenuMaster() {
     setListLoading(true);
     try {
       const [{ data: globalData }, { data: localData }] = await Promise.all([
-        (supabase as any).from('global_food_master').select('code, name, name_en, item_category').order('name'),
-        (supabase as any).from('local_food_master').select('local_code, name, name_en, item_category').eq('teacher_id', userId).order('name'),
+        supabase.from('global_food_master').select('code, name, name_en, item_category').order('name'),
+        supabase.from('local_food_master').select('local_code, name, name_en, item_category').eq('teacher_id', userId).order('name'),
       ]);
 
       const global: FoodOption[] = (globalData || []).map((g: any) => ({
@@ -108,10 +108,10 @@ export default function TeacherMenuMaster() {
     if (!userId) return;
     setFetchLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('menu_master')
         .select('*')
-        .eq('teacher_id', userId)
+        .eq('teacher_id', userId!)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -255,7 +255,7 @@ export default function TeacherMenuMaster() {
   const deleteItem = async (id: string) => {
     if (!window.confirm('हा आयटम काढायचा आहे का?')) return;
     try {
-      const { error } = await (supabase as any).from('menu_master').delete().eq('id', id);
+      const { error } = await supabase.from('menu_master').delete().eq('id', id);
       if (error) throw error;
       fetchMenu();
     } catch (err: any) {
@@ -306,6 +306,7 @@ export default function TeacherMenuMaster() {
                     value={selectedCode}
                     onChange={e => setSelectedCode(e.target.value)}
                     disabled={listLoading}
+                    title="खाद्यपदार्थ निवडा (Select Food Item)"
                     className="flex-1 border border-slate-300 p-2.5 text-sm font-bold focus:outline-none focus:border-[#474379] focus:ring-1 focus:ring-[#474379] text-slate-700 bg-white disabled:bg-slate-50 rounded-none shadow-sm"
                   >
                     <option value="">
@@ -372,6 +373,7 @@ export default function TeacherMenuMaster() {
               <div className="bg-slate-50 border border-slate-200 p-5 relative">
                 <button 
                   onClick={() => setShowCustomForm(false)} 
+                  title="फॉर्म बंद करा (Close Form)"
                   className="absolute top-3 right-3 text-slate-400 hover:text-red-500"
                 >
                   <X size={20} />
@@ -494,7 +496,7 @@ export default function TeacherMenuMaster() {
                       <td className="p-4 text-[12px] font-black text-slate-600 text-right">{(item.grams_primary / 1000).toFixed(5)} kg</td>
                       <td className="p-4 text-[12px] font-black text-slate-600 text-right">{(item.grams_upper_primary / 1000).toFixed(5)} kg</td>
                       <td className="p-4 text-center">
-                        <button onClick={()=>deleteItem(item.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={15} /></button>
+                        <button title="आहार हटवा (Delete Food Item)" onClick={()=>deleteItem(item.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={15} /></button>
                       </td>
                     </tr>
                   ))
@@ -542,7 +544,7 @@ export default function TeacherMenuMaster() {
                       <td className="p-4 text-[12px] font-black text-slate-600 text-right">{(item.grams_primary / 1000).toFixed(5)} kg</td>
                       <td className="p-4 text-[12px] font-black text-slate-600 text-right">{(item.grams_upper_primary / 1000).toFixed(5)} kg</td>
                       <td className="p-4 text-center">
-                        <button onClick={()=>deleteItem(item.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={15} /></button>
+                        <button title="साहित्य हटवा (Delete Ingredient)" onClick={()=>deleteItem(item.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={15} /></button>
                       </td>
                     </tr>
                   ))

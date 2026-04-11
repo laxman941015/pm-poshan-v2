@@ -38,7 +38,7 @@ export default function TeacherProfile() {
         .from('profiles')
         .select('*')
         .eq('id', id)
-        .maybeSingle();
+        .single();
       
       if (error) throw error;
       if (data) {
@@ -67,8 +67,8 @@ export default function TeacherProfile() {
           center_name_mr: centerNameMr,
           taluka_mr: talukaMr,
           district_mr: districtMr
-        } as any)
-        .eq('id', userId);
+        })
+        .eq('id', userId!);
         
       if (error) throw error;
       

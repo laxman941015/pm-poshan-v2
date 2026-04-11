@@ -33,14 +33,18 @@ export interface Database {
           log_date: string
           meals_served_primary: number
           meals_served_upper_primary: number
+          is_holiday: boolean | null
+          holiday_remarks: string | null
           created_at: string
         }
         Insert: {
           id?: string
           teacher_id: string
-          log_date?: string
+          log_date: string
           meals_served_primary: number
           meals_served_upper_primary: number
+          is_holiday?: boolean | null
+          holiday_remarks?: string | null
           created_at?: string
         }
         Update: {
@@ -49,6 +53,8 @@ export interface Database {
           log_date?: string
           meals_served_primary?: number
           meals_served_upper_primary?: number
+          is_holiday?: boolean | null
+          holiday_remarks?: string | null
           created_at?: string
         }
       }
@@ -57,12 +63,24 @@ export interface Database {
           id: string
           email: string
           role: string | null
+          first_name: string | null
+          last_name: string | null
+          school_name: string | null
+          school_id: string | null
+          school_name_mr: string | null
+          center_name_mr: string | null
           created_at: string | null
         }
         Insert: {
           id: string
           email: string
           role?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          school_name?: string | null
+          school_id?: string | null
+          school_name_mr?: string | null
+          center_name_mr?: string | null
           created_at?: string | null
         }
         Update: {
@@ -427,7 +445,8 @@ export interface Database {
           module_name: string
           route_path: string
           icon_name: string
-          is_active_for_teachers: boolean | null
+          description: string | null
+          is_active_for_teachers: boolean
           created_at: string | null
         }
         Insert: {
@@ -435,7 +454,8 @@ export interface Database {
           module_name: string
           route_path: string
           icon_name: string
-          is_active_for_teachers?: boolean | null
+          description?: string | null
+          is_active_for_teachers?: boolean
           created_at?: string | null
         }
         Update: {
@@ -443,7 +463,8 @@ export interface Database {
           module_name?: string
           route_path?: string
           icon_name?: string
-          is_active_for_teachers?: boolean | null
+          description?: string | null
+          is_active_for_teachers?: boolean
           created_at?: string | null
         }
       }

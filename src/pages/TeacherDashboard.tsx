@@ -1,6 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import type { Database } from '../types/database.types';
 import Layout from '../components/Layout';
+
+type EnrollmentRow = Database['public']['Tables']['student_enrollment']['Row'];
+type DailyLogRow = Database['public']['Tables']['daily_logs']['Row'];
+type StockRow = Database['public']['Tables']['inventory_stock']['Row'];
+type MenuRow = Database['public']['Tables']['menu_master']['Row'];
+type ScheduleRowDB = Database['public']['Tables']['menu_weekly_schedule']['Row'];
 import { 
   Calendar,
   AlertCircle,
@@ -66,18 +73,19 @@ export default function TeacherDashboard() {
       const endLocal = new Date(selectedYear, selectedMonth + 1, 0);
       const endOfMonth = `${endLocal.getFullYear()}-${String(endLocal.getMonth() + 1).padStart(2, '0')}-${String(endLocal.getDate()).padStart(2, '0')}`;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('daily_logs')
         .select('log_date, meals_served_primary, meals_served_upper_primary, is_holiday')
-        .eq('teacher_id', userId)
+        .eq('teacher_id', userId!)
         .gte('log_date', startOfMonth)
         .lte('log_date', endOfMonth);
 
       if (error) throw error;
       if (data) {
-        setDailyLogsData(data);
+        const rows = data as DailyLogRow[];
+        setDailyLogsData(rows);
         
-        const total = (data as any[]).reduce((sum: number, log: any) => 
+        const total = rows.reduce((sum: number, log: DailyLogRow) => 
           sum + (log.meals_served_primary || 0) + (log.meals_served_upper_primary || 0), 0
         );
         setTotalMealsMonth(total);
@@ -89,12 +97,12 @@ export default function TeacherDashboard() {
 
   const fetchInventory = async () => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('inventory_stock')
         .select('*')
-        .eq('teacher_id', userId);
+        .eq('teacher_id', userId!);
       if (error) throw error;
-      setInventoryItems(data || []);
+      setInventoryItems(data as StockRow[] || []);
     } catch (err: any) {
       console.error('Error fetching inventory:', err.message);
     }
@@ -102,15 +110,16 @@ export default function TeacherDashboard() {
 
   const fetchEnrollment = async () => {
     try {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('student_enrollment')
         .select('*')
-        .eq('teacher_id', userId)
+        .eq('teacher_id', userId!)
         .maybeSingle();
       if (data) {
+        const row = data as EnrollmentRow;
         setEnrollment({
-          primary: (data.std_1 || 0) + (data.std_2 || 0) + (data.std_3 || 0) + (data.std_4 || 0) + (data.std_5 || 0),
-          upper: (data.std_6 || 0) + (data.std_7 || 0) + (data.std_8 || 0)
+          primary: (row.std_1 || 0) + (row.std_2 || 0) + (row.std_3 || 0) + (row.std_4 || 0) + (row.std_5 || 0),
+          upper: (row.std_6 || 0) + (row.std_7 || 0) + (row.std_8 || 0)
         });
       }
     } catch (err) { console.error(err); }
@@ -118,16 +127,16 @@ export default function TeacherDashboard() {
 
   const fetchMenuGrams = async () => {
     try {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('menu_master')
         .select('item_name, item_code, grams_primary, grams_upper_primary')
-        .eq('teacher_id', userId);
+        .eq('teacher_id', userId!);
       
       const gramsMap: Record<string, {primary: number, upper: number}> = {};
       if (data) {
-        data.forEach((m: any) => {
-          gramsMap[m.item_name] = { primary: m.grams_primary, upper: m.grams_upper_primary };
-          if (m.item_code) gramsMap[m.item_code] = { primary: m.grams_primary, upper: m.grams_upper_primary };
+        (data as MenuRow[]).forEach((m: MenuRow) => {
+          gramsMap[m.item_name] = { primary: m.grams_primary, upper: m.grams_upper_primary || 0 };
+          if (m.item_code) gramsMap[m.item_code] = { primary: m.grams_primary, upper: m.grams_upper_primary || 0 };
         });
         setFoodGramsMap(gramsMap);
       }
@@ -149,14 +158,14 @@ export default function TeacherDashboard() {
       const { data, error } = await (supabase as any)
         .from('menu_weekly_schedule')
         .select('*')
-        .eq('teacher_id', userId)
+        .eq('teacher_id', userId!)
         .eq('week_pattern', scheduleType)
         .eq('day_name', stringDay)
         .eq('is_active', true)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      setTodayMenu(data as ScheduleRowDB);
+      setTodayMenu(data as unknown as ScheduleRowDB);
     } catch (err: any) {
       console.error('Error fetching menu:', err.message);
     }
@@ -228,12 +237,12 @@ export default function TeacherDashboard() {
             </div>
 
             {/* Advanced Inventory Longevity Alerts & Debt Warning */}
-            <div className="bg-white border shadow-sm overflow-hidden">
+            <div className="bg-white border-2 border-slate-100 shadow-xl overflow-hidden rounded-3xl">
               <button 
                 onClick={() => setIsInventoryOpen(!isInventoryOpen)}
-                className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-100"
+                className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-100"
               >
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <h3 className="text-[11px] md:text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                   <AlertCircle size={16} className={inventoryItems.some(i => Number(i.current_balance) < 0) ? "text-red-600 animate-pulse" : criticalItems.length > 0 ? "text-[#dd4b39]" : "text-green-600"} /> 
                   Inventory & Debt Health
                 </h3>
@@ -241,39 +250,39 @@ export default function TeacherDashboard() {
               </button>
 
               {isInventoryOpen && (
-                <div className="p-4 bg-slate-50/30">
-                  <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {inventoryItems.map((item: any) => {
                       const balance = Number(item.current_balance);
                       const grams = foodGramsMap[item.item_name] || { primary: 100, upper: 150 };
                       const dailyRequirement = (enrollment.primary * grams.primary + enrollment.upper * grams.upper) / 1000;
                       const daysRemaining = dailyRequirement > 0 ? (balance / dailyRequirement) : Infinity;
 
-                      let colorClasses = "bg-green-50 border-green-200 text-green-800";
+                      let colorClasses = "bg-white border-slate-200 text-slate-800";
                       let statusText = daysRemaining === Infinity ? 'पुरेसा साठा' : `~${Math.floor(daysRemaining)} दिवस पुरेल`;
                       let unitText = "kg";
 
                       if (balance < 0) {
-                        colorClasses = "bg-red-50 border-red-500 text-red-600 ring-1 ring-red-100";
+                        colorClasses = "bg-red-50 border-red-200 text-red-600";
                         statusText = "उसणे धान्य (Debt)";
                         unitText = "kg borrowed";
                       } else if (daysRemaining <= 2) {
-                        colorClasses = "bg-red-50 border-red-300 text-red-800";
+                        colorClasses = "bg-orange-50 border-orange-200 text-orange-800";
                       } else if (daysRemaining <= 10) {
-                        colorClasses = "bg-yellow-50 border-yellow-300 text-yellow-800";
+                        colorClasses = "bg-blue-50 border-blue-200 text-blue-800";
                       }
 
                       return (
-                        <div key={item.id} className={`p-4 rounded-xl border-2 shadow-sm flex flex-col justify-between transition-all hover:scale-[1.02] ${colorClasses}`}>
-                          <h4 className="font-black text-[11px] uppercase mb-2 truncate flex items-center gap-1">
+                        <div key={item.id} className={`p-5 rounded-2xl border-2 shadow-sm flex flex-col justify-between transition-all hover:scale-[1.02] ${colorClasses}`}>
+                          <h4 className="font-black text-[10px] uppercase mb-2 truncate flex items-center gap-1 opacity-60">
                             {balance < 0 && <AlertCircle size={10} />} {item.item_name}
                           </h4>
                           <div>
-                            <div className="text-xl font-black">
+                            <div className="text-2xl font-black tracking-tight">
                               {balance < 0 ? `-${Math.abs(balance).toFixed(2)}` : balance.toFixed(2)} 
-                              <span className="text-[10px] ml-1">{unitText}</span>
+                              <span className="text-[10px] ml-1 uppercase opacity-40 font-bold">{unitText}</span>
                             </div>
-                            <div className="text-[9px] font-black uppercase tracking-widest mt-1 opacity-80">
+                            <div className="text-[9px] font-black uppercase tracking-widest mt-1 opacity-70">
                               {statusText}
                             </div>
                           </div>
@@ -282,22 +291,22 @@ export default function TeacherDashboard() {
                     })}
                   </div>
                   {inventoryItems.length === 0 && (
-                     <div className="text-center py-4 text-slate-400 italic text-xs">No inventory items found.</div>
+                     <div className="text-center py-6 text-slate-400 italic text-xs font-bold">No inventory items found.</div>
                   )}
                 </div>
               )}
 
               {!isInventoryOpen && (
                 <div className="px-5 py-3 flex items-center justify-between">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {inventoryItems.some(i => Number(i.current_balance) < 0) && (
-                      <span className="text-[9px] font-black bg-red-600 text-white px-2 py-0.5 rounded shadow-sm animate-pulse">DEBT ALERT</span>
+                      <span className="text-[8px] font-black bg-red-600 text-white px-2 py-0.5 rounded shadow-sm animate-pulse">DEBT ALERT</span>
                     )}
-                    <p className="text-[11px] font-bold text-slate-500 uppercase">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                       {criticalItems.length > 0 ? `⚠️ ${criticalItems.length} items require attention` : "✅ All stock levels nominal"}
                     </p>
                   </div>
-                  <button onClick={() => setIsInventoryOpen(true)} className="text-[10px] font-black text-blue-600 uppercase hover:underline">View Health Grid</button>
+                  <button onClick={() => setIsInventoryOpen(true)} className="text-[9px] font-black text-blue-600 uppercase hover:underline">View Health</button>
                 </div>
               )}
             </div>
@@ -307,29 +316,30 @@ export default function TeacherDashboard() {
           <div className="lg:col-span-2 space-y-5">
             
             {/* Calendar Card */}
-            <div className="bg-white border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+            <div className="bg-white border-2 border-slate-100 shadow-xl rounded-3xl overflow-hidden">
+              <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/30">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                  <h3 className="text-[11px] md:text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                     <Calendar className="text-blue-600" size={18} /> Monthly Submission Registry
                   </h3>
                   <select 
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="bg-white border border-slate-200 text-[10px] font-black uppercase px-2 py-1 rounded shadow-sm outline-none focus:border-blue-500 transition-all"
+                    className="bg-white border-2 border-slate-200 text-[10px] font-black uppercase px-3 py-1.5 rounded-xl shadow-sm outline-none w-full sm:w-auto"
+                    title="वर्ष निवडा (Select Year)"
                   >
                     {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                <div className="flex overflow-x-auto pb-2 gap-1.5 no-scrollbar touch-pan-x">
                   {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => (
                     <button
                       key={m}
                       onClick={() => setSelectedMonth(idx)}
-                      className={`px-3 py-1 rounded text-[9px] font-black uppercase tracking-tighter border transition-all ${
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${
                         selectedMonth === idx 
-                          ? 'bg-[#474379] border-[#474379] text-white shadow-md' 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-lg' 
                           : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-100'
                       }`}
                     >
@@ -338,129 +348,113 @@ export default function TeacherDashboard() {
                   ))}
                 </div>
 
-                <div className="flex gap-4 mt-4 pt-4 border-t border-slate-200/50">
+                <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t border-slate-100 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#00a65a]"></div>
-                    <span className="text-[9px] font-black text-slate-500 uppercase">Logged</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#00a65a]"></div>
+                    <span>Logged</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#dd4b39]"></div>
-                    <span className="text-[9px] font-black text-slate-500 uppercase">Pending</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#dd4b39]"></div>
+                    <span>Pending</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                    <span className="text-[9px] font-black text-slate-500 uppercase">शासकीय सुट्टी (Holiday)</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
+                    <span>Holiday</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-5">
+              <div className="p-4 md:p-6 overflow-x-auto">
                 {calendarLoading ? (
                   <div className="h-40 flex flex-col items-center justify-center gap-4">
                     <Loader2 className="animate-spin text-blue-500" size={32} />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-7 gap-1 md:gap-2 auto-rows-fr">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="text-center text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-tighter pb-1.5">{day}</div>
-                    ))}
-                    {(() => {
-                      const now = new Date();
-                      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                      const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).getDay();
-                      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-                      const slots = [];
+                  <div className="min-w-[600px] md:min-w-0">
+                    <div className="grid grid-cols-7 gap-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="text-center text-[9px] font-black text-slate-400 uppercase tracking-widest pb-3">{day}</div>
+                      ))}
+                      {(() => {
+                        const now = new Date();
+                        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                        const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).getDay();
+                        const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+                        const slots = [];
 
-                      for (let i = 0; i < firstDayOfMonth; i++) {
-                        slots.push(<div key={`pad-${i}`} className="aspect-square md:aspect-auto md:min-h-[100px] h-full w-full bg-slate-50/50 border border-transparent rounded-md"></div>);
-                      }
-
-                      for (let d = 1; d <= daysInMonth; d++) {
-                        const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                        const matchedLog = dailyLogsData.find((log: any) => log.log_date === dateStr);
-                        const isSubmitted = !!matchedLog;
-                        const isHoliday = matchedLog?.is_holiday || false;
-                        const totalMeals = matchedLog ? (Number(matchedLog.meals_served_primary) || 0) + (Number(matchedLog.meals_served_upper_primary) || 0) : 0;
-                        const isToday = dateStr === today;
-                        const isPast = dateStr < today;
-                        const isFuture = dateStr > today;
-
-                        let style = "bg-white border-slate-200 text-slate-400";
-                        let statusText = "-";
-                        let labelStyle = "text-slate-400";
-
-                        if (isHoliday) {
-                          style = "bg-yellow-400 border-yellow-500 text-red-600 shadow-md shadow-yellow-100 font-bold";
-                          statusText = "शासकीय सुट्टी";
-                          labelStyle = "text-red-600";
-                        } else if (isSubmitted) {
-                          style = "bg-[#00a65a] border-[#00a65a] text-white shadow-md shadow-green-200";
-                          statusText = "LOGGED";
-                          labelStyle = "text-white/80";
-                        } else if (isToday) {
-                          style = "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200 ring-2 ring-blue-100 ring-offset-1";
-                          statusText = "PENDING";
-                          labelStyle = "text-white/80";
-                        } else if (isPast) {
-                          style = "bg-red-50 border-red-100 text-red-500 font-bold";
-                          statusText = "MISSING";
-                          labelStyle = "text-red-600";
+                        for (let i = 0; i < firstDayOfMonth; i++) {
+                          slots.push(<div key={`pad-${i}`} className="aspect-square bg-slate-50/50 rounded-2xl border border-transparent"></div>);
                         }
 
-                        slots.push(
-                          <div 
-                            key={d} 
-                            onClick={() => {
-                              if (isFuture) return;
-                              if (isSubmitted) {
-                                const formattedDate = new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-                                if (!window.confirm(`A log already exists for ${formattedDate}. Do you want to edit it?`)) {
-                                  return;
-                                }
-                              }
-                              setSelectedLogDate(dateStr);
-                              setIsLogModalOpen(true);
-                            }}
-                            className={`aspect-square md:aspect-auto md:min-h-[100px] h-full w-full border flex flex-col justify-between items-center p-1 md:p-2 rounded-md transition-all overflow-hidden ${isFuture ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'} ${style}`}
-                          >
-                            {/* TOP: The Date Badge */}
-                            <div className={`w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-sm text-[10px] md:text-xs font-black ${isSubmitted || isToday || (isPast && statusText === 'MISSING') ? 'bg-white/20' : 'bg-slate-100'}`}>
-                              {d}
-                            </div>
+                        for (let d = 1; d <= daysInMonth; d++) {
+                          const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                          const matchedLog = dailyLogsData.find((log: any) => log.log_date === dateStr);
+                          const isSubmitted = !!matchedLog;
+                          const isHoliday = matchedLog?.is_holiday || false;
+                          const totalMeals = matchedLog ? (Number(matchedLog.meals_served_primary) || 0) + (Number(matchedLog.meals_served_upper_primary) || 0) : 0;
+                          const isToday = dateStr === today;
+                          const isPast = dateStr < today;
+                          const isFuture = dateStr > today;
 
-                            {/* MIDDLE: Status Text */}
-                            <div className={`text-[7px] md:text-[10px] font-bold uppercase tracking-tighter w-full text-center truncate ${labelStyle}`}>
-                              {isHoliday ? (
-                                <span className="flex flex-col items-center">
-                                  <span className="md:hidden">सुट्टी</span>
-                                  <span className="hidden md:inline">शासकीय सुट्टी</span>
-                                </span>
-                              ) : (
-                                statusText
-                              )}
-                            </div>
+                          let style = "bg-white border-slate-100 text-slate-400";
+                          let statusText = "-";
+                          let labelStyle = "text-slate-400";
 
-                            {/* BOTTOM: Attendance / Count Badge */}
-                            <div className="w-full bg-black/10 rounded-sm py-0.5 flex items-center justify-center gap-1 text-[8px] md:text-xs font-black">
-                              {isSubmitted && !isHoliday && totalMeals > 0 ? (
-                                <>🥘 {totalMeals}</>
-                              ) : (
-                                <span className="opacity-40">-</span>
-                              )}
+                          if (isHoliday) {
+                            style = "bg-amber-400 border-amber-500 text-amber-950 shadow-lg shadow-amber-100 ring-2 ring-white";
+                            statusText = "सुट्टी";
+                            labelStyle = "text-amber-950/60";
+                          } else if (isSubmitted) {
+                            style = "bg-[#00a65a] border-green-600 text-white shadow-lg shadow-green-100 ring-2 ring-white";
+                            statusText = "DONE";
+                            labelStyle = "text-white/70";
+                          } else if (isToday) {
+                            style = "bg-blue-600 border-blue-700 text-white shadow-xl shadow-blue-100 ring-2 ring-white scale-105 z-10 animate-pulse";
+                            statusText = "TODAY";
+                            labelStyle = "text-white/70";
+                          } else if (isPast) {
+                            style = "bg-red-50 border-red-100 text-red-600 ring-2 ring-white";
+                            statusText = "MISSING";
+                            labelStyle = "text-red-400";
+                          }
+
+                          slots.push(
+                            <div 
+                              key={d} 
+                              onClick={() => {
+                                if (isFuture) return;
+                                setSelectedLogDate(dateStr);
+                                setIsLogModalOpen(true);
+                              }}
+                              className={`aspect-square border flex flex-col justify-between items-center p-2 rounded-2xl transition-all ${isFuture ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'} ${style}`}
+                            >
+                              <div className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black ${isSubmitted || isToday || isHoliday ? 'bg-white/20' : 'bg-slate-50'}`}>
+                                {d}
+                              </div>
+                              <div className={`text-[8px] font-black uppercase tracking-tighter text-center truncate w-full ${labelStyle}`}>
+                                {statusText}
+                              </div>
+                              <div className="w-full bg-black/10 rounded-lg py-0.5 flex items-center justify-center text-[9px] font-black pointer-events-none">
+                                {isSubmitted && !isHoliday && totalMeals > 0 ? (
+                                  <>🥘 {totalMeals}</>
+                                ) : (
+                                  <span className="opacity-20">-</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      }
-                      return slots;
-                    })()}
+                          );
+                        }
+                        return slots;
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
             {isLogModalOpen && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                 <div className="w-full max-w-4xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-xl p-3 md:p-6">
+                 <div className="w-full max-w-4xl h-[95vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 no-scrollbar rounded-3xl">
                     <DailyLogForm 
                       targetDate={selectedLogDate} 
                       onClose={() => setIsLogModalOpen(false)} 
@@ -477,6 +471,7 @@ export default function TeacherDashboard() {
         {/* Floating Action Button (FAB) for Mobile Quick Submission */}
         <div className="fixed bottom-20 right-6 md:hidden z-[40]">
            <button 
+             title="दैनंदिन नोंद करा (Submit Today's Log)"
              onClick={() => {
                const now = new Date();
                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

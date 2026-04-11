@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import type { Database } from '../types/database.types';
 import Layout from '../components/Layout';
-import { 
-  RefreshCw, 
-  CheckCircle2, 
+
+type ScheduleRowDB = Database['public']['Tables']['menu_weekly_schedule']['Row'];
+import {
+  RefreshCw,
+  CheckCircle2,
   ToggleLeft,
   ToggleRight,
   Info,
@@ -72,7 +75,7 @@ export default function WeeklyMenuSchedule() {
       const { data: menuData } = await (supabase as any)
         .from('menu_master')
         .select('item_code, item_name, item_category')
-        .eq('teacher_id', userId)
+        .eq('teacher_id', userId!)
         .order('item_name');
 
       const unified: FoodItem[] = (menuData || []).map((m: any) => ({
@@ -88,14 +91,14 @@ export default function WeeklyMenuSchedule() {
       const { data: scheduleData } = await (supabase as any)
         .from('menu_weekly_schedule')
         .select('*')
-        .eq('teacher_id', userId);
+        .eq('teacher_id', userId!);
 
       // 3. Initialize 14 rows (7 for WEEK_1_3_5, 7 for WEEK_2_4)
       const initialSchedule: ScheduleRow[] = [];
       ['WEEK_1_3_5', 'WEEK_2_4'].forEach((type: any) => {
         DAYS.forEach((day, index) => {
-          const existing = scheduleData?.find(
-            (s: any) => s.week_pattern === type && s.day_name === day.id
+          const existing = (scheduleData as ScheduleRowDB[])?.find(
+            (s) => s.week_pattern === type && s.day_name === day.id
           );
           initialSchedule.push({
             teacher_id: userId!,
@@ -117,19 +120,19 @@ export default function WeeklyMenuSchedule() {
   };
 
   const handleToggleDay = (type: 'WEEK_1_3_5' | 'WEEK_2_4', dayId: string) => {
-    setSchedule(prev => prev.map(row => 
-      (row.week_pattern === type && row.day_name === dayId) 
-      ? { ...row, is_active: !row.is_active } 
-      : row
+    setSchedule((prev: ScheduleRow[]) => prev.map((row: ScheduleRow) =>
+      (row.week_pattern === type && row.day_name === dayId)
+        ? { ...row, is_active: !row.is_active }
+        : row
     ));
   };
 
   const toggleMultiSelect = (type: 'WEEK_1_3_5' | 'WEEK_2_4', dayId: string, field: 'main_food_codes' | 'menu_items', code: string) => {
-    setSchedule(prev => prev.map(row => {
+    setSchedule((prev: ScheduleRow[]) => prev.map((row: ScheduleRow) => {
       if (row.week_pattern === type && row.day_name === dayId) {
         const currentList = row[field] || [];
         const newList = currentList.includes(code)
-          ? currentList.filter(c => c !== code)
+          ? currentList.filter((c: string) => c !== code)
           : [...currentList, code];
         return { ...row, [field]: newList };
       }
@@ -143,7 +146,7 @@ export default function WeeklyMenuSchedule() {
     try {
       const { error: upsertError } = await (supabase as any)
         .from('menu_weekly_schedule')
-        .upsert(schedule, { onConflict: 'teacher_id, week_pattern, day_name' });
+        .upsert(schedule);
 
       if (upsertError) throw upsertError;
 
@@ -168,7 +171,7 @@ export default function WeeklyMenuSchedule() {
   }
 
   const renderScheduleBlock = (type: 'WEEK_1_3_5' | 'WEEK_2_4') => {
-    const blockRows = schedule.filter(s => s.week_pattern === type);
+    const blockRows = schedule.filter((s: ScheduleRow) => s.week_pattern === type);
 
     return (
       <div className="bg-white border-2 border-indigo-900/10 rounded-2xl overflow-hidden shadow-2xl shadow-indigo-900/5 mb-12">
@@ -179,11 +182,11 @@ export default function WeeklyMenuSchedule() {
         </div>
 
         <div className="divide-y divide-slate-100">
-          {blockRows.map((row) => {
-            const dayName = DAYS.find(d => d.id === row.day_name)?.name;
+          {blockRows.map((row: ScheduleRow) => {
+            const dayName = DAYS.find((d: { id: string, name: string }) => d.id === row.day_name)?.name;
             return (
-              <div 
-                key={row.day_name} 
+              <div
+                key={row.day_name}
                 className={`p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-start transition-all ${!row.is_active ? 'bg-slate-50/50 grayscale' : 'bg-white hover:bg-slate-50/30'}`}
               >
                 {/* 1. Day & Toggle */}
@@ -202,13 +205,13 @@ export default function WeeklyMenuSchedule() {
 
                 {/* 2. Main Meal Plate (Multi-select) */}
                 <div className="md:col-span-5 space-y-2">
-                   <div className={`grid grid-cols-2 gap-2 border-2 border-dashed border-slate-100 p-3 rounded-xl min-h-[100px] ${!row.is_active ? 'opacity-30 pointer-events-none' : 'bg-white shadow-inner'}`}>
+                  <div className={`grid grid-cols-2 gap-2 border-2 border-dashed border-slate-100 p-3 rounded-xl min-h-[100px] ${!row.is_active ? 'opacity-30 pointer-events-none' : 'bg-white shadow-inner'}`}>
                     {mainFoods.map(food => (
-                      <label 
-                        key={food.id} 
+                      <label
+                        key={food.id}
                         className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all border ${row.main_food_codes.includes(food.id) ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'}`}
                       >
-                         <input
+                        <input
                           type="checkbox" className="hidden"
                           checked={row.main_food_codes.includes(food.id)}
                           onChange={() => toggleMultiSelect(type, row.day_name, 'main_food_codes', food.id)}
@@ -223,13 +226,13 @@ export default function WeeklyMenuSchedule() {
 
                 {/* 3. Ingredients checklist */}
                 <div className="md:col-span-5 space-y-2">
-                   <div className={`grid grid-cols-2 gap-2 border-2 border-dashed border-slate-100 p-3 rounded-xl min-h-[100px] ${!row.is_active ? 'opacity-30 pointer-events-none' : 'bg-white shadow-inner'}`}>
+                  <div className={`grid grid-cols-2 gap-2 border-2 border-dashed border-slate-100 p-3 rounded-xl min-h-[100px] ${!row.is_active ? 'opacity-30 pointer-events-none' : 'bg-white shadow-inner'}`}>
                     {ingredients.map(item => (
-                      <label 
-                        key={item.id} 
+                      <label
+                        key={item.id}
                         className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all border ${row.menu_items.includes(item.id) ? 'bg-indigo-900 border-indigo-900 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
                       >
-                         <input
+                        <input
                           type="checkbox" className="hidden"
                           checked={row.menu_items.includes(item.id)}
                           onChange={() => toggleMultiSelect(type, row.day_name, 'menu_items', item.id)}
@@ -252,10 +255,10 @@ export default function WeeklyMenuSchedule() {
   return (
     <Layout>
       <div className="w-[95%] max-w-[1400px] mx-auto z-10 relative space-y-6 pb-10 px-4 mt-6">
-        
+
         {/* Module Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-end border-b-4 pb-6 border-slate-200">
-          <button 
+          <button
             disabled={loading}
             onClick={saveSchedule}
             className="bg-[#3c8dbc] hover:bg-[#2e7da6] text-white px-8 py-3.5 rounded-none font-black text-xs transition-all shadow-xl shadow-blue-500/20 active:scale-95 uppercase tracking-widest flex items-center gap-3 h-fit border-b-4 border-[#2b6687] mt-4 lg:mt-0"
@@ -279,13 +282,13 @@ export default function WeeklyMenuSchedule() {
 
         <div className="bg-slate-900 text-slate-300 p-8 rounded-3xl border border-slate-800 shadow-2xl flex flex-col md:flex-row gap-6 items-center">
           <div className="p-4 bg-orange-500/10 text-orange-500 rounded-2xl border border-orange-500/20">
-             <Info size={32} />
+            <Info size={32} />
           </div>
           <div>
             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-2">Automated Logistics System</p>
             <p className="text-sm font-bold text-slate-100 leading-relaxed max-w-3xl font-mono">
-              The AI Engine uses these meal plates to calculate stock depletion. 
-              Adding multiple "Main Foods" (e.g. Rice + Pulao) will count students for both items. 
+              The AI Engine uses these meal plates to calculate stock depletion.
+              Adding multiple "Main Foods" (e.g. Rice + Pulao) will count students for both items.
               Please ensure your "Ingredients" list is mapped correctly in the Menu Master.
             </p>
           </div>

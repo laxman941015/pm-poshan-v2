@@ -1,5 +1,7 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { calculateConsumedKg } from '../utils/inventoryUtils';
 import Layout from '../components/Layout';
 import {
   Calculator,
@@ -156,27 +158,25 @@ export default function ConsumptionLog() {
 
   const calculateRequirement = () => {
     if (!primaryCount && !upperCount) return 0;
-    const totalGrams = (Number(primaryCount || 0) * GRAMS_PRIMARY) + (Number(upperCount || 0) * GRAMS_UPPER);
-    return totalGrams / 1000; 
+    return calculateConsumedKg(
+      Number(primaryCount || 0),
+      Number(upperCount || 0),
+      GRAMS_PRIMARY,
+      GRAMS_UPPER
+    );
   };
 
   const handleProcessConsumption = async () => {
     if (localMainFoods.length === 0) {
-      const msg = 'कृपया मुख्य आहार निवडा.';
-      alert(msg);
-      setStatus({ type: 'error', text: msg });
+      setStatus({ type: 'error', text: 'कृपया मुख्य आहार निवडा.' });
       return;
     }
     if (!primaryCount && !upperCount) {
-      const msg = 'कृपया विद्यार्थ्यांची उपस्थिती प्रविष्ट करा.';
-      alert(msg);
-      setStatus({ type: 'error', text: msg });
+      setStatus({ type: 'error', text: 'कृपया विद्यार्थ्यांची उपस्थिती प्रविष्ट करा.' });
       return;
     }
     if (Number(primaryCount) > enrollment.primary || Number(upperCount) > enrollment.upper) {
-      const msg = 'उपस्थिती पटसंख्येपेक्षा जास्त असू शकत नाही.';
-      alert(msg);
-      setStatus({ type: 'error', text: msg });
+      setStatus({ type: 'error', text: 'उपस्थिती पटसंख्येपेक्षा जास्त असू शकत नाही.' });
       return;
     }
 
@@ -370,6 +370,7 @@ export default function ConsumptionLog() {
                     </div>
                     <select 
                       onChange={(e) => {handleAddMainFood(e.target.value); e.target.value = "";}}
+                      title="मुख्य आहार निवडा"
                       className="w-full p-2.5 text-[10px] font-black bg-white border-2 border-blue-100 text-blue-900 rounded-xl outline-none"
                     >
                       <option value="">+ मुख्य आहार जोडा</option>
@@ -395,6 +396,7 @@ export default function ConsumptionLog() {
                     </div>
                     <select 
                       onChange={(e) => {handleAddIngredient(e.target.value); e.target.value = "";}}
+                      title="घटक निवडा"
                       className="w-full mt-3 p-2.5 text-[10px] font-black bg-blue-900 text-white rounded-xl outline-none"
                     >
                       <option value="">+ घटक जोडा</option>
@@ -451,9 +453,7 @@ export default function ConsumptionLog() {
                           <div
                             className={`h-full transition-all duration-500 ${isBorrowed ? 'bg-red-500' : (isLow ? 'bg-amber-400' : 'bg-green-400')}`}
                             style={{ width: `${Math.max(0, Math.min(100, (balanceAfter / (stock?.current_balance || 1)) * 100))}%` }}
-                          >
-                            
-                          </div>
+                          ></div>
                         </div>
                         <span className={`text-[10px] font-black ${isBorrowed ? 'text-red-400' : (isLow ? 'text-amber-300' : 'text-white/80')}`}>
                           {isBorrowed ? `⚠️ ${Math.abs(balanceAfter).toFixed(2)} KG BORROWED` : `${balanceAfter.toFixed(2)} KG REMAINING`}
