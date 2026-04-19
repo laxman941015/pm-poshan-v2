@@ -1,9 +1,16 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 🔗 Connection string for Local PostgreSQL (Docker)
-# Port 5433, Trust Mode (no password)
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:admin123@127.0.0.1:5434/postgres"
+load_dotenv()
+
+# 🔗 Get connection string from .env file
+# Fallback for local development if .env is missing
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://postgres:admin123@127.0.0.1:5434/postgres"
+)
 
 # The 'engine' is the core of the connection
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
