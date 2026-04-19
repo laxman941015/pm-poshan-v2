@@ -45,7 +45,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [API_URL]);
 
   const signOut = async () => {
-    await api.auth.signOut();
+    try {
+      await fetch(`${API_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     setSession(null);
     setUser(null);
     setRole(null);

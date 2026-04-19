@@ -115,6 +115,16 @@ def login_for_access_token(response: Response, form_data: schemas.UserLogin, db:
             raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=True  # Enabled for HTTPS
+    )
+    return {"message": "Logged out successfully"}
+
 # 2. CREATE a Profile (Updated with Password Hashing)
 @app.post("/profiles/", response_model=schemas.Profile)
 def create_profile(profile: schemas.ProfileCreate, db: Session = Depends(get_db)):
