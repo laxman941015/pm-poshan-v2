@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: pmposhan-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Ayush@202325
+      POSTGRES_DB: pmposhan
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - pmposhan-network
+
+  # 2. FastAPI Backend
+  backend:
+    build: ./backend
+    container_name: pmposhan-api
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    networks:
+      - pmposhan-network
+
+  # 3. React Frontend (Nginx)
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: pmposhan-ui
+    restart: always
+    ports:
+      - "80:80"
+    networks:
+      - pmposhan-network
+
+networks:
+  pmposhan-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
