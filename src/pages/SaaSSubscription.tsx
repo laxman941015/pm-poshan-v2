@@ -76,8 +76,13 @@ const SaaSSubscription: React.FC = () => {
       }
 
       // Step B: Initialize Razorpay Checkout
+      if (!orderRes.key_id) {
+        console.error("Backend failed to return Razorpay Key ID", orderRes);
+        throw new Error("Razorpay configuration error: Key ID missing from server response.");
+      }
+
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: orderRes.key_id,
         amount: orderRes.amount,
         currency: "INR",
         name: "PM-POSHAN Tracker",

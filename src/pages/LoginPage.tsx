@@ -17,7 +17,7 @@ export default function LoginPage() {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     if (loading) return;
 
     setLoading(true);
@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div className="font-sans text-gray-900 min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50 via-white to-orange-50 flex flex-col relative overflow-hidden">
-      
+
       {/* Background blobs for premium aesthetic */}
       <div className="absolute top-1/4 -right-1/4 w-[800px] h-[800px] bg-orange-100 rounded-full blur-[120px] opacity-40 pointer-events-none"></div>
       <div className="absolute bottom-0 -left-1/4 w-[600px] h-[600px] bg-blue-100 rounded-full blur-[100px] opacity-50 pointer-events-none"></div>
@@ -68,7 +68,7 @@ export default function LoginPage() {
       {/* Main Content */}
       <main className="flex-grow pt-36 pb-20 px-4 flex items-center justify-center relative z-10">
         <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          
+
           {/* Instructions Box (Left Side) */}
           <div className="hidden lg:flex flex-col space-y-8 pr-8">
             <div>
@@ -102,7 +102,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-               <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4">
                 <div className="bg-indigo-100 text-indigo-600 p-3 rounded-2xl shadow-inner mt-1">
                   <FileText size={20} />
                 </div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
           {/* Login Form Box (Right Side) */}
           <div className="flex justify-center w-full">
             <div className="w-full max-w-md bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white relative overflow-hidden flex flex-col">
-              
+
               {/* Header inside the card */}
               <div className="mb-8 relative z-10 text-center lg:text-left">
                 <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -150,7 +150,7 @@ export default function LoginPage() {
                     className="block w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/50 transition-all outline-none text-slate-700 placeholder-slate-400 font-medium shadow-sm hover:border-gray-300"
                   />
                 </div>
-                
+
                 {/* Password Input */}
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">

@@ -18,6 +18,8 @@ router = APIRouter(
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "secret_placeholder")
 
+print(f"DEBUG: Razorpay Key Loaded: {RAZORPAY_KEY_ID[:8]}...")
+
 client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 @router.post("/create-order", response_model=Dict[str, Any])
