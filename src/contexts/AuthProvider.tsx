@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthContext, useAuth } from './AuthContext';
 import type { Session, User } from './AuthContext';
-import { api } from '../lib/apiClient';
 
 export { useAuth, AuthContext };
 
