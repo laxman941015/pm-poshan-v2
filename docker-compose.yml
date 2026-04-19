@@ -24,6 +24,9 @@ services:
     restart: always
     depends_on:
       - db
+    environment:
+      DATABASE_URL: postgresql://postgres:Ayush%40202325@db:5432/pmposhan
+      ALLOWED_ORIGINS: https://pmposhanyojnamdm.duckdns.org,http://pmposhanyojnamdm.duckdns.org,http://206.189.128.72,https://206.189.128.72
     env_file:
       - ./backend/.env
     ports:
