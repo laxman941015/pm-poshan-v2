@@ -12,18 +12,27 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
+    // 🛑 STOP the browser from refreshing immediately
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (loading) return;
+
     setLoading(true);
     setError('');
 
     try {
+      console.log("🔐 Login: Attempting authentication for", email);
       await signIn(email, password);
-      
-      // 🎉 Direct Redirect to Dashboard
+      console.log("🎉 Login: Success! Redirecting...");
       navigate('/');
-      
     } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.');
+      console.error("❌ Login: Authentication failed:", err);
+      // Ensure we extract a readable message
+      const msg = err.message || 'Incorrect email or password. Please try again.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
