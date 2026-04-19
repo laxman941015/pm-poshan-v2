@@ -31,7 +31,7 @@ services:
     networks:
       - pmposhan-network
 
-  # 3. React Frontend (Nginx)
+  # 3. React Frontend (Nginx with SSL)
   frontend:
     build: 
       context: .
@@ -40,6 +40,9 @@ services:
     restart: always
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - pmposhan-network
 
