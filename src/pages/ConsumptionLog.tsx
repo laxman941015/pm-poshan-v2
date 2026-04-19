@@ -47,15 +47,6 @@ export default function ConsumptionLog() {
   const [showBorrowedModal, setShowBorrowedModal] = useState(false);
   const [deficitItems, setDeficitItems] = useState<{name: string, deficit: number}[]>([]);
 
-  // PM-POSHAN Standard Grams per Student
-  const GRAMS_PRIMARY = 100;
-  const GRAMS_UPPER = 150;
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setUserId(session.user.id);
-    });
-  }, []);
 
   useEffect(() => {
     if (userId) {

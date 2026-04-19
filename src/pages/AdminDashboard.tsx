@@ -27,12 +27,10 @@ export default function AdminDashboard() {
 
   // Food Master State
   const [globalFoods, setGlobalFoods] = useState<any[]>([]);
-  const [foodLoading, setFoodLoading] = useState(false);
   const [newFoodCode, setNewFoodCode] = useState('');
   const [newFoodName, setNewFoodName] = useState('');
   const [newFoodNameEn, setNewFoodNameEn] = useState('');
   const [newFoodCategory, setNewFoodCategory] = useState<'MAIN' | 'INGREDIENT'>('MAIN');
-  const [foodMsg, setFoodMsg] = useState({ type: '', text: '' });
   const [isCodeValidated, setIsCodeValidated] = useState(false);
 
   // New Teacher Management State

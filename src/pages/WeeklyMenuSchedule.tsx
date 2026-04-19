@@ -1,6 +1,3 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import type { Database } from '../types/database.types';
 import Layout from '../components/Layout';
 
 type ScheduleRowDB = Database['public']['Tables']['menu_weekly_schedule']['Row'];
