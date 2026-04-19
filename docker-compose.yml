@@ -7,9 +7,9 @@ services:
     container_name: pmposhan-db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Ayush@202325
-      POSTGRES_DB: pmposhan
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -25,8 +25,11 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgresql://postgres:Ayush%40202325@db:5432/pmposhan
-      ALLOWED_ORIGINS: https://pmposhanyojnamdm.duckdns.org,http://pmposhanyojnamdm.duckdns.org,http://206.189.128.72,https://206.189.128.72
+      DATABASE_URL: ${DB_URL}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
     env_file:
       - ./backend/.env
     ports:
