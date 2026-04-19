@@ -156,7 +156,7 @@ class MonthlyReport(Base):
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(String, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     school_name = Column(String)
     amount = Column(Integer, nullable=False) # In paise
     razorpay_order_id = Column(String, unique=True, nullable=False)
