@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { calculateConsumedKg } from '../utils/inventoryUtils';
+import { calculateConsumedKg, getCurrentStock } from '../utils/inventoryUtils';
 import { api } from '../lib/apiClient';
 import type { Database } from '../types/database.types';
 import { useAuth } from '../contexts/AuthProvider';
@@ -207,8 +207,24 @@ export default function DailyLogForm({ targetDate, onClose, onSuccess }: DailyLo
         }
       }
 
-      const { data: stock } = await api.from('inventory_stock').select('*').eq('teacher_id', userId).returns<InventoryStock[]>();
-      setInventory(stock || []);
+      const { data: stockRecords } = await api.from('inventory_stock').select('*').eq('teacher_id', userId).returns<InventoryStock[]>();
+      
+      // FIX: Use live reconstruction for better accuracy, matching Stock Register
+      const liveStock = await getCurrentStock(userId, masterRes.data || []);
+      const mergedStock = (masterRes.data || []).map(m => {
+        // Try to find an existing record to get the database ID and other metadata
+        const existing = (stockRecords || []).find(s => s.item_code === m.item_code || s.item_name === m.item_name);
+        return {
+          ...existing, // Preserve existing ID and teacher_id if available
+          id: existing?.id || m.item_code || m.item_name,
+          item_name: m.item_name,
+          item_code: m.item_code,
+          current_balance: liveStock[m.item_name] || 0,
+          standard_group: existing?.standard_group || 'primary'
+        } as InventoryStock;
+      });
+
+      setInventory(mergedStock);
     } catch (err: any) {
       console.error(err);
     } finally {
