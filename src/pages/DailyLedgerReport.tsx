@@ -278,7 +278,11 @@ export default function DailyLedgerReport() {
 
       const receivedSums: Record<string, number> = {};
       (receipts || []).forEach((r: any) => {
-        receivedSums[r.item_name] = (receivedSums[r.item_name] || 0) + (Number(r.quantity_kg) || 0);
+        if (r.bill_no === 'OPENING_BALANCE') {
+          openingBalances[r.item_name] = (openingBalances[r.item_name] || 0) + (Number(r.quantity_kg) || 0);
+        } else {
+          receivedSums[r.item_name] = (receivedSums[r.item_name] || 0) + (Number(r.quantity_kg) || 0);
+        }
       });
 
       // D. Menu Weekly Schedule
