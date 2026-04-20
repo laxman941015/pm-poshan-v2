@@ -839,9 +839,9 @@ export default function DailyLedgerReport() {
                             {menuItems.map(m => {
                               const op = Number(ledgerData.topSummaries.opening[m.item_code]) || 0;
                               const rec = Number(ledgerData.topSummaries.received[m.item_code]) || 0;
-                              const available = Math.max(0, op) + rec;
+                              const netAvailable = op + rec;
                               const cons = Number(ledgerData.footerTotals.consumptions[m.item_code]) || 0;
-                              const borrowed = Number(Math.max(0, cons - available).toFixed(2));
+                              const borrowed = Number(Math.max(0, cons - netAvailable).toFixed(2));
                               return (
                                 <td key={'borrow_' + m.item_code} className="border border-black print:border-[1px] p-2 text-right font-black text-amber-600 print:text-black text-[10px]">
                                   {borrowed === 0 ? '-' : borrowed}
