@@ -78,7 +78,7 @@ export default function EnrollmentForm({ userId, onSuccess }: EnrollmentFormProp
     }
   }, [userId]);
 
-  const updateSectionConfig = async (primary: boolean, upper: boolean) => {
+  const updateSectionConfig = (primary: boolean, upper: boolean) => {
     if (!primary && !upper) {
       alert("Error: A school must have at least one active section (Primary or Upper Primary).");
       return;
@@ -86,22 +86,8 @@ export default function EnrollmentForm({ userId, onSuccess }: EnrollmentFormProp
 
     setHasPrimary(primary);
     setHasUpperPrimary(upper);
-
-    if (!userId) return;
-
-    try {
-      const { error } = await api
-        .from('profiles')
-        .update({
-          has_primary: primary,
-          has_upper_primary: upper
-        })
-        .eq('id', userId);
-
-      if (error) throw error;
-    } catch (err: any) {
-      console.error('Section update error:', err.message);
-    }
+    // REMOVED: Immediate database update. 
+    // Configuration should only save via handleSave() or after payment success.
   };
 
   const fetchEnrollment = async () => {

@@ -249,23 +249,36 @@ const SaaSSubscription: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  disabled={loading || isPaid}
-                  onClick={() => handlePayment(plan)}
-                  className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all ${
-                    isPaid 
-                    ? 'bg-emerald-50 text-emerald-600 cursor-not-allowed'
-                    : 'bg-slate-900 text-white hover:bg-blue-600 hover:shadow-xl active:scale-95 disabled:opacity-50'
-                  }`}
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : isPaid ? (
-                    <>Active <CheckCircle2 size={18} /></>
-                  ) : (
-                    <>वर्गणी भरा (Pay Now) <ArrowRight size={18} /></>
-                  )}
-                </button>
+                {/* Plan Status Logic */}
+                {(() => {
+                  const userPlan = user?.saas_plan_type;
+                  const isActive = isPaid && (
+                    userPlan === plan.section_type || 
+                    userPlan === 'combo' || 
+                    (userPlan === 'primary' && plan.section_type === 'primary') ||
+                    (userPlan === 'upper_primary' && plan.section_type === 'upper_primary')
+                  );
+
+                  return (
+                    <button
+                      disabled={loading || isActive}
+                      onClick={() => handlePayment(plan)}
+                      className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all ${
+                        isActive 
+                        ? 'bg-emerald-50 text-emerald-600 cursor-not-allowed'
+                        : 'bg-slate-900 text-white hover:bg-blue-600 hover:shadow-xl active:scale-95 disabled:opacity-50'
+                      }`}
+                    >
+                      {loading ? (
+                        <Loader2 className="animate-spin" size={18} />
+                      ) : isActive ? (
+                        <>Active <CheckCircle2 size={18} /></>
+                      ) : (
+                        <>{isPaid ? 'Upgrade Now' : 'वर्गणी भरा (Pay Now)'} <ArrowRight size={18} /></>
+                      )}
+                    </button>
+                  );
+                })()}
               </div>
             ))
           )}
