@@ -371,8 +371,8 @@ export default function MonthlyReport() {
             }
           });
 
-          const availableBeforeBorrowing = Math.max(0, openBal) + received;
-          const borrowed = Math.max(0, consumed - availableBeforeBorrowing);
+          const netAvailable = openBal + received;
+          const borrowed = Math.max(0, consumed - netAvailable);
           
           // Total (Row 4) = Opening + Received
           const total = openBal + received;
