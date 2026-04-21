@@ -112,12 +112,13 @@ export default function StockDemandReport() {
       const newMonthFrequencies: Record<string, Record<string, number>> = {};
 
       // 1. Pre-calculate total possible weekdays (Mon-Sat) in the entire range
+      const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const totalPossibleWeekdays = selectedMonths.reduce((acc, m) => {
         const start = new Date(m.year, m.month, 1);
         const end = new Date(m.year, m.month + 1, 0);
         let count = 0;
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          if (d.toLocaleDateString('en-US', { weekday: 'long' }) !== 'Sunday') count++;
+          if (DAYS[d.getDay()] !== 'Sunday') count++;
         }
         return acc + count;
       }, 0);
@@ -133,8 +134,10 @@ export default function StockDemandReport() {
           const start = new Date(m.year, m.month, 1);
           const end = new Date(m.year, m.month + 1, 0);
           let monthPossibleWeekdays = 0;
-          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            if (d.toLocaleDateString('en-US', { weekday: 'long' }) !== 'Sunday') monthPossibleWeekdays++;
+          const tempDate = new Date(start);
+          while (tempDate <= end) {
+            if (DAYS[tempDate.getDay()] !== 'Sunday') monthPossibleWeekdays++;
+            tempDate.setDate(tempDate.getDate() + 1);
           }
 
           // Calculate how many days they actually work this month (Limit)
@@ -158,25 +161,43 @@ export default function StockDemandReport() {
           } else {
             // Non-staples: Calculate based on A/B Week Schedule
             let scheduledDaysCount = 0;
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-              const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-              if (dayName === 'Sunday') continue;
+            const loopDate = new Date(start);
+            while (loopDate <= end) {
+              const dayName = DAYS[loopDate.getDay()];
+              if (dayName === 'Sunday') {
+                loopDate.setDate(loopDate.getDate() + 1);
+                continue;
+              }
 
               // Determine Week of Month (1-5) and Pattern (Odd=Regular, Even=Alternate)
-              const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
-              const weekNum = Math.ceil((d.getDate() + firstDay) / 7);
+              const firstDay = new Date(loopDate.getFullYear(), loopDate.getMonth(), 1).getDay();
+              const weekNum = Math.ceil((loopDate.getDate() + firstDay) / 7);
               const pattern = (weekNum % 2 !== 0) ? 'regular' : 'alternate';
 
-              const isInSchedule = schedule.some(s =>
-                s.is_active &&
-                s.day_name === dayName &&
-                s.week_pattern === pattern &&
-                ((s.menu_items || []).includes(item.item_code) || (s.menu_items || []).includes(item.item_name) || (s.main_food_codes || []).includes(item.item_code) || (s.main_food_codes || []).includes(item.item_name))
-              );
+              const isInSchedule = schedule.some(s => {
+                if (!s.is_active) return false;
+                
+                // Case-insensitive checks for day and pattern
+                const dbDay = (s.day_name || "").toLowerCase().trim();
+                const currentDay = dayName.toLowerCase().trim();
+                const dbPattern = (s.week_pattern || "").toLowerCase().trim();
+                const currentPattern = pattern.toLowerCase().trim();
+
+                if (dbDay !== currentDay) return false;
+                if (dbPattern !== currentPattern) return false;
+
+                const itemsInRow = [...(s.menu_items || []), ...(s.main_food_codes || [])];
+                return itemsInRow.some(codeOrName => {
+                  const target = codeOrName?.toLowerCase().trim();
+                  return target === item.item_code?.toLowerCase().trim() ||
+                    target === item.item_name?.toLowerCase().trim();
+                });
+              });
 
               if (isInSchedule) {
                 scheduledDaysCount++;
               }
+              loopDate.setDate(loopDate.getDate() + 1);
             }
 
             // Proportional Scale: (scheduled / total_possible) * working_days_limit
