@@ -278,3 +278,15 @@ class ItemLedgerReport(Base):
     report_data = Column(JSONB)
     standard_group = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+ 
+class DemandReport(Base):
+    __tablename__ = "demand_reports"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    teacher_id = Column(String, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
+    report_period = Column(String, nullable=False)
+    class_group = Column(String)
+    working_days = Column(Integer)
+    enrollment_count = Column(Integer)
+    standard_group = Column(String)
+    report_data = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

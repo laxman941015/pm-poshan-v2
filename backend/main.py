@@ -343,6 +343,7 @@ def get_generic_data(
         "menu_weekly_schedule": models.MenuWeeklySchedule,
         "monthly_reports": models.MonthlyReport,
         "item_ledger_reports": models.ItemLedgerReport,
+        "demand_reports": models.DemandReport,
         "financial_ledger_snapshots": models.FinancialLedgerSnapshot,
         "payment_receipts": models.PaymentReceipt,
         "saas_pricing": models.SaasPricing,
@@ -462,6 +463,7 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
         "saas_pricing": models.SaasPricing,
         "saas_coupons": models.SaasCoupon,
         "item_ledger_reports": models.ItemLedgerReport,
+        "demand_reports": models.DemandReport,
         "financial_ledger_snapshots": models.FinancialLedgerSnapshot
     }
     
@@ -545,7 +547,8 @@ def patch_generic_data(
         "fuel_tracking": models.FuelTracking,
         "monthly_mandhan": models.MonthlyMandhan,
         "system_modules": models.SystemModule,
-        "item_ledger_reports": models.ItemLedgerReport
+        "item_ledger_reports": models.ItemLedgerReport,
+        "demand_reports": models.DemandReport
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
@@ -694,6 +697,7 @@ def delete_generic_data(table_name: str, id: str, db: Session = Depends(get_db),
         "payment_receipts": models.PaymentReceipt,
         "monthly_mandhan": models.MonthlyMandhan,
         "item_ledger_reports": models.ItemLedgerReport,
+        "demand_reports": models.DemandReport,
         "financial_ledger_snapshots": models.FinancialLedgerSnapshot
     }
     
