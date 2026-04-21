@@ -45,7 +45,7 @@ export default function StockDemandReport() {
   const reportPeriod = `${fromMonth} ${fromYear} ते ${tillMonth} ${tillYear}`;
 
   const [enrollmentCount, setEnrollmentCount] = useState<number>(0);
-  
+
   // Section Configuration
   const [hasPrimary, setHasPrimary] = useState<boolean>(true);
   const [hasUpperPrimary, setHasUpperPrimary] = useState<boolean>(true);
@@ -57,7 +57,7 @@ export default function StockDemandReport() {
   const userId = user?.id || null;
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [itemFrequencies, setItemFrequencies] = useState<Record<string, number>>({});
-  
+
   const [customDemands, setCustomDemands] = useState<Record<string, string>>({});
   const [isSaved, setIsSaved] = useState(false);
 
@@ -111,62 +111,90 @@ export default function StockDemandReport() {
       const newFrequencies: Record<string, number> = {};
       const newMonthFrequencies: Record<string, Record<string, number>> = {};
 
+      // 1. Pre-calculate total possible weekdays (Mon-Sat) in the entire range
+      const totalPossibleWeekdays = selectedMonths.reduce((acc, m) => {
+        const start = new Date(m.year, m.month, 1);
+        const end = new Date(m.year, m.month + 1, 0);
+        let count = 0;
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          if (d.toLocaleDateString('en-US', { weekday: 'long' }) !== 'Sunday') count++;
+        }
+        return acc + count;
+      }, 0);
+
       menuItems.forEach(item => {
         newMonthFrequencies[item.id] = {};
-        let runningTotal = 0;
+        let runningTotalFreq = 0;
 
         selectedMonths.forEach((m, idx) => {
           const monthKey = `${m.month}-${m.year}`;
-          const counts = monthWeekdayCounts[monthKey] || {};
 
-          // Calculate proportional working days cap for this month
-          const daysInThisMonth = new Date(m.year, m.month + 1, 0).getDate();
-          const totalDaysInPeriod = selectedMonths.reduce((acc, curr) => acc + new Date(curr.year, curr.month + 1, 0).getDate(), 0);
-          const monthWorkingDaysLimit = (selectedMonths.length === 1) ? workingDays : Math.round((workingDays * daysInThisMonth) / totalDaysInPeriod);
+          // Calculate possible weekdays in THIS specific month
+          const start = new Date(m.year, m.month, 1);
+          const end = new Date(m.year, m.month + 1, 0);
+          let monthPossibleWeekdays = 0;
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            if (d.toLocaleDateString('en-US', { weekday: 'long' }) !== 'Sunday') monthPossibleWeekdays++;
+          }
+
+          // Calculate how many days they actually work this month (Limit)
+          const monthWorkingDaysLimit = (selectedMonths.length === 1)
+            ? workingDays
+            : Math.round((workingDays * monthPossibleWeekdays) / totalPossibleWeekdays);
 
           let monthFreq = 0;
           const lowerName = item.item_name.toLowerCase();
           const isStaple = lowerName.includes('तांदूळ') || lowerName.includes('rice') ||
-                           lowerName.includes('तेल') || lowerName.includes('oil') ||
-                           lowerName.includes('मीठ') || lowerName.includes('salt');
+            lowerName.includes('तेल') || lowerName.includes('oil') ||
+            lowerName.includes('मीठ') || lowerName.includes('salt');
 
           if (isStaple) {
+            // Staples are used every single day they work
             if (idx === selectedMonths.length - 1) {
-              monthFreq = workingDays - runningTotal;
+              monthFreq = workingDays - runningTotalFreq;
             } else {
               monthFreq = monthWorkingDaysLimit;
             }
           } else {
-            // Count unique weekdays from schedule to prevent double-counting across slots
-            const usedDays = new Set<string>();
-            schedule.filter(s => s.is_active).forEach(s => {
-              const hasItem = (s.menu_items || []).includes(item.item_code) ||
-                              (s.menu_items || []).includes(item.item_name) ||
-                              (s.main_food_codes || []).includes(item.item_name) ||
-                              (s.main_food_codes || []).includes(item.item_code);
+            // Non-staples: Calculate based on A/B Week Schedule
+            let scheduledDaysCount = 0;
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+              const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+              if (dayName === 'Sunday') continue;
 
-              if (hasItem) {
-                usedDays.add(s.day_name);
+              // Determine Week of Month (1-5) and Pattern (Odd=Regular, Even=Alternate)
+              const firstDay = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
+              const weekNum = Math.ceil((d.getDate() + firstDay) / 7);
+              const pattern = (weekNum % 2 !== 0) ? 'regular' : 'alternate';
+
+              const isInSchedule = schedule.some(s =>
+                s.is_active &&
+                s.day_name === dayName &&
+                s.week_pattern === pattern &&
+                ((s.menu_items || []).includes(item.item_code) || (s.menu_items || []).includes(item.item_name) || (s.main_food_codes || []).includes(item.item_code) || (s.main_food_codes || []).includes(item.item_name))
+              );
+
+              if (isInSchedule) {
+                scheduledDaysCount++;
               }
-            });
+            }
 
-            usedDays.forEach(day => {
-              monthFreq += (counts[day] || 0);
-            });
-
-            // Cap at the working days limit for this month
-            monthFreq = Math.min(monthWorkingDaysLimit, monthFreq);
+            // Proportional Scale: (scheduled / total_possible) * working_days_limit
+            if (monthPossibleWeekdays > 0) {
+              monthFreq = Math.round((scheduledDaysCount / monthPossibleWeekdays) * monthWorkingDaysLimit);
+            }
           }
+
           newMonthFrequencies[item.id][monthKey] = Math.max(0, monthFreq);
-          runningTotal += monthFreq;
+          runningTotalFreq += monthFreq;
         });
 
-        newFrequencies[item.id] = runningTotal;
+        newFrequencies[item.id] = runningTotalFreq;
 
         // Calculate Demand
         const balance = inventoryBalances[item.item_name] || 0;
         const grams = classGroup === 'PRIMARY' ? Number(item.grams_primary) : Number(item.grams_upper_primary);
-        const required = (enrollmentCount * runningTotal * grams) / 1000;
+        const required = (enrollmentCount * runningTotalFreq * grams) / 1000;
         const demand = Math.max(0, required - balance);
         newDemands[item.id] = demand.toFixed(3);
       });
@@ -194,7 +222,7 @@ export default function StockDemandReport() {
       if (profile) {
         setSchoolName(profile.school_name_mr || "जिल्हा परिषद प्राथमिक शाळा");
         setCenterName(profile.center_name_mr || "-");
-        
+
         const hp = profile.has_primary ?? true;
         const hup = profile.has_upper_primary ?? true;
         setHasPrimary(hp);
@@ -213,7 +241,7 @@ export default function StockDemandReport() {
         .maybeSingle();
 
       if (enrollment) {
-        const sum = classGroup === 'PRIMARY' 
+        const sum = classGroup === 'PRIMARY'
           ? (Number(enrollment.std_1) || 0) + (Number(enrollment.std_2) || 0) + (Number(enrollment.std_3) || 0) + (Number(enrollment.std_4) || 0) + (Number(enrollment.std_5) || 0)
           : (Number(enrollment.std_6) || 0) + (Number(enrollment.std_7) || 0) + (Number(enrollment.std_8) || 0);
         setEnrollmentCount(sum);
@@ -235,12 +263,12 @@ export default function StockDemandReport() {
         // Priority 1: Category (MAIN before INGREDIENT)
         if (a.item_category === 'MAIN' && b.item_category !== 'MAIN') return -1;
         if (a.item_category !== 'MAIN' && b.item_category === 'MAIN') return 1;
-        
+
         // Priority 2: Sort Rank (Ascending)
         const rankA = a.sort_rank ?? 999;
         const rankB = b.sort_rank ?? 999;
         if (rankA !== rankB) return rankA - rankB;
-        
+
         // Fallback: Name
         return (a.item_name || '').localeCompare(b.item_name || '');
       });
@@ -502,10 +530,10 @@ export default function StockDemandReport() {
                 <tr className="bg-slate-50 print:bg-gray-100">
                   <th className="border border-black print:border-black print:text-black w-12 p-2 py-3 print:py-1 text-center">अ. क्र.</th>
                   <th className="border border-black print:border-black print:text-black w-[25%] p-2 py-3 print:py-1 text-left">धान्यादी माल</th>
-                  
+
                   {selectedMonths.map(m => (
                     <th key={`${m.month}-${m.year}`} className="border border-black print:border-black print:text-black w-[10%] p-2 py-3 print:py-1 text-center">
-                      {m.name} <br/> वापराचे दिवस
+                      {m.name} <br /> वापराचे दिवस
                     </th>
                   ))}
 
@@ -526,7 +554,7 @@ export default function StockDemandReport() {
                     <tr key={item.id}>
                       <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-center font-normal">{idx + 1}</td>
                       <td className="border border-black print:border-black print:text-black p-2 print:py-1 font-medium">{item.item_name}</td>
-                      
+
                       {selectedMonths.map(m => {
                         const monthKey = `${m.month}-${m.year}`;
                         const freq = (monthFrequencies[item.id] || {})[monthKey] || 0;
