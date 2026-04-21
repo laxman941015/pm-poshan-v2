@@ -173,10 +173,17 @@ export default function StockDemandReport() {
               });
             });
 
+            // 1. Check if the schedule is globally populated for this teacher
+            const isScheduleGloballyPopulated = schedule.some(s => 
+              (s.main_food_codes?.length || 0) > 0 || (s.menu_items?.length || 0) > 0
+            );
+
             if (!itemEverInSchedule) {
-              // 🛡️ SAFE FALLBACK: If item is not in the schedule at all, 
-              // assume it's used every day (matches old behavior before schedule logic)
-              monthFreq = monthWorkingDaysLimit;
+              // 🛡️ SAFE FALLBACK:
+              // If the WHOLE schedule is empty, assume everything is used every day.
+              // BUT if they have scheduled at least one thing (like Rice), then 
+              // any item NOT in the schedule should be 0 days.
+              monthFreq = isScheduleGloballyPopulated ? 0 : monthWorkingDaysLimit;
             } else {
               // Calculate based on actual schedule matches
               const loopDate = new Date(start);
