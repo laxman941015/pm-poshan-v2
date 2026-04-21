@@ -149,7 +149,10 @@ export default function StockDemandReport() {
           const lowerName = item.item_name.toLowerCase();
           const isStaple = lowerName.includes('तांदूळ') || lowerName.includes('rice') ||
             lowerName.includes('तेल') || lowerName.includes('oil') ||
-            lowerName.includes('मीठ') || lowerName.includes('salt');
+            lowerName.includes('मीठ') || lowerName.includes('salt') ||
+            lowerName.includes('हळद') || lowerName.includes('halad') ||
+            lowerName.includes('मसाला') || lowerName.includes('masala') ||
+            lowerName.includes('तिखट') || lowerName.includes('chili');
 
           if (isStaple) {
             // Staples are used every single day they work
@@ -161,48 +164,66 @@ export default function StockDemandReport() {
           } else {
             // Non-staples: Calculate based on A/B Week Schedule
             let scheduledDaysCount = 0;
-            const loopDate = new Date(start);
-            while (loopDate <= end) {
-              const dayName = DAYS[loopDate.getDay()];
-              if (dayName === 'Sunday') {
-                loopDate.setDate(loopDate.getDate() + 1);
-                continue;
-              }
+            let itemEverInSchedule = false; // Track if this item appears anywhere in the schedule
 
-              // Determine Week of Month (1-5) and Pattern (Odd=Regular, Even=Alternate)
-              const firstDay = new Date(loopDate.getFullYear(), loopDate.getMonth(), 1).getDay();
-              const weekNum = Math.ceil((loopDate.getDate() + firstDay) / 7);
-              const pattern = (weekNum % 2 !== 0) ? 'regular' : 'alternate';
-
-              const isInSchedule = schedule.some(s => {
-                if (!s.is_active) return false;
-                
-                // Case-insensitive checks for day and pattern
-                const dbDay = (s.day_name || "").toLowerCase().trim();
-                const currentDay = dayName.toLowerCase().trim();
-                const dbPattern = (s.week_pattern || "").toLowerCase().trim();
-                const currentPattern = pattern.toLowerCase().trim();
-
-                if (dbDay !== currentDay) return false;
-                if (dbPattern !== currentPattern) return false;
-
-                const itemsInRow = [...(s.menu_items || []), ...(s.main_food_codes || [])];
-                return itemsInRow.some(codeOrName => {
-                  const target = codeOrName?.toLowerCase().trim();
-                  return target === item.item_code?.toLowerCase().trim() ||
-                    target === item.item_name?.toLowerCase().trim();
-                });
+            // First pass: check if item exists in ANY schedule row (to detect misconfiguration vs intentional 0)
+            itemEverInSchedule = schedule.some(s => {
+              const itemsInRow = [...(s.menu_items || []), ...(s.main_food_codes || [])];
+              return itemsInRow.some(codeOrName => {
+                const target = codeOrName?.toLowerCase().trim();
+                return target === item.item_code?.toLowerCase().trim() ||
+                  target === item.item_name?.toLowerCase().trim();
               });
+            });
 
-              if (isInSchedule) {
-                scheduledDaysCount++;
+            if (!itemEverInSchedule) {
+              // 🛡️ SAFE FALLBACK: If item is not in the schedule at all, 
+              // assume it's used every day (matches old behavior before schedule logic)
+              monthFreq = monthWorkingDaysLimit;
+            } else {
+              // Calculate based on actual schedule matches
+              const loopDate = new Date(start);
+              while (loopDate <= end) {
+                const dayName = DAYS[loopDate.getDay()];
+                if (dayName === 'Sunday') {
+                  loopDate.setDate(loopDate.getDate() + 1);
+                  continue;
+                }
+
+                // Determine Week of Month (1-5) and Pattern (Odd=WEEK_1_3_5, Even=WEEK_2_4)
+                const firstDay = new Date(loopDate.getFullYear(), loopDate.getMonth(), 1).getDay();
+                const weekNum = Math.ceil((loopDate.getDate() + firstDay) / 7);
+                const pattern = (weekNum % 2 !== 0) ? 'WEEK_1_3_5' : 'WEEK_2_4';
+
+                const isInSchedule = schedule.some(s => {
+                  if (!s.is_active) return false;
+                  
+                  const dbDay = (s.day_name || "").toLowerCase().trim();
+                  const currentDay = dayName.toLowerCase().trim();
+                  const dbPattern = (s.week_pattern || "").toLowerCase().trim();
+                  const currentPattern = pattern.toLowerCase().trim();
+
+                  if (dbDay !== currentDay) return false;
+                  if (dbPattern !== currentPattern) return false;
+
+                  const itemsInRow = [...(s.menu_items || []), ...(s.main_food_codes || [])];
+                  return itemsInRow.some(codeOrName => {
+                    const target = codeOrName?.toLowerCase().trim();
+                    return target === item.item_code?.toLowerCase().trim() ||
+                      target === item.item_name?.toLowerCase().trim();
+                  });
+                });
+
+                if (isInSchedule) {
+                  scheduledDaysCount++;
+                }
+                loopDate.setDate(loopDate.getDate() + 1);
               }
-              loopDate.setDate(loopDate.getDate() + 1);
-            }
 
-            // Proportional Scale: (scheduled / total_possible) * working_days_limit
-            if (monthPossibleWeekdays > 0) {
-              monthFreq = Math.round((scheduledDaysCount / monthPossibleWeekdays) * monthWorkingDaysLimit);
+              // Proportional Scale: (scheduled / total_possible) * working_days_limit
+              if (monthPossibleWeekdays > 0) {
+                monthFreq = Math.round((scheduledDaysCount / monthPossibleWeekdays) * monthWorkingDaysLimit);
+              }
             }
           }
 
