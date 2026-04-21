@@ -149,10 +149,7 @@ export default function StockDemandReport() {
           const lowerName = item.item_name.toLowerCase();
           const isStaple = lowerName.includes('तांदूळ') || lowerName.includes('rice') ||
             lowerName.includes('तेल') || lowerName.includes('oil') ||
-            lowerName.includes('मीठ') || lowerName.includes('salt') ||
-            lowerName.includes('हळद') || lowerName.includes('halad') ||
-            lowerName.includes('मसाला') || lowerName.includes('masala') ||
-            lowerName.includes('तिखट') || lowerName.includes('chili');
+            lowerName.includes('मीठ') || lowerName.includes('salt');
 
           if (isStaple) {
             // Staples are used every single day they work
