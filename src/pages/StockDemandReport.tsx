@@ -119,6 +119,11 @@ export default function StockDemandReport() {
           const monthKey = `${m.month}-${m.year}`;
           const counts = monthWeekdayCounts[monthKey] || {};
 
+          // Calculate proportional working days cap for this month
+          const daysInThisMonth = new Date(m.year, m.month + 1, 0).getDate();
+          const totalDaysInPeriod = selectedMonths.reduce((acc, curr) => acc + new Date(curr.year, curr.month + 1, 0).getDate(), 0);
+          const monthWorkingDaysLimit = (selectedMonths.length === 1) ? workingDays : Math.round((workingDays * daysInThisMonth) / totalDaysInPeriod);
+
           let monthFreq = 0;
           const lowerName = item.item_name.toLowerCase();
           const isStaple = lowerName.includes('तांदूळ') || lowerName.includes('rice') ||
@@ -129,11 +134,11 @@ export default function StockDemandReport() {
             if (idx === selectedMonths.length - 1) {
               monthFreq = workingDays - runningTotal;
             } else {
-              const daysInThisMonth = new Date(m.year, m.month + 1, 0).getDate();
-              const totalDaysInPeriod = selectedMonths.reduce((acc, curr) => acc + new Date(curr.year, curr.month + 1, 0).getDate(), 0);
-              monthFreq = Math.round((workingDays * daysInThisMonth) / totalDaysInPeriod);
+              monthFreq = monthWorkingDaysLimit;
             }
           } else {
+            // Count unique weekdays from schedule to prevent double-counting across slots
+            const usedDays = new Set<string>();
             schedule.filter(s => s.is_active).forEach(s => {
               const hasItem = (s.menu_items || []).includes(item.item_code) ||
                               (s.menu_items || []).includes(item.item_name) ||
@@ -141,9 +146,16 @@ export default function StockDemandReport() {
                               (s.main_food_codes || []).includes(item.item_code);
 
               if (hasItem) {
-                monthFreq += (counts[s.day_name] || 0);
+                usedDays.add(s.day_name);
               }
             });
+
+            usedDays.forEach(day => {
+              monthFreq += (counts[day] || 0);
+            });
+
+            // Cap at the working days limit for this month
+            monthFreq = Math.min(monthWorkingDaysLimit, monthFreq);
           }
           newMonthFrequencies[item.id][monthKey] = Math.max(0, monthFreq);
           runningTotal += monthFreq;
