@@ -56,11 +56,15 @@ export default function StockDemandReport() {
   const { user } = useAuth();
   const userId = user?.id || null;
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
-  const [weekdayCounts, setWeekdayCounts] = useState<Record<string, number>>({});
   const [itemFrequencies, setItemFrequencies] = useState<Record<string, number>>({});
   
   const [customDemands, setCustomDemands] = useState<Record<string, string>>({});
   const [isSaved, setIsSaved] = useState(false);
+
+  // Separate month frequency tracking
+  const [selectedMonths, setSelectedMonths] = useState<{ name: string; month: number; year: number }[]>([]);
+  const [monthWeekdayCounts, setMonthWeekdayCounts] = useState<Record<string, Record<string, number>>>({});
+  const [monthFrequencies, setMonthFrequencies] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
     if (userId) {
@@ -68,65 +72,104 @@ export default function StockDemandReport() {
     }
   }, [userId, classGroup, fromMonth, fromYear, tillMonth, tillYear]);
 
-  // Auto-Calculation Engine with Rounding & Frequency Logic
+  // 1. Detect months in range and calculate weekday counts for each
   useEffect(() => {
-    if (menuItems.length > 0) {
+    const fromIdx = marathiMonths.indexOf(fromMonth);
+    const tillIdx = marathiMonths.indexOf(tillMonth);
+    const fYear = Number(fromYear);
+    const tYear = Number(tillYear);
+
+    const months: { name: string; month: number; year: number }[] = [];
+    let currYear = fYear;
+    let currMonth = fromIdx;
+
+    let iterations = 0;
+    while ((currYear < tYear || (currYear === tYear && currMonth <= tillIdx)) && iterations < 12) {
+      months.push({ name: marathiMonths[currMonth], month: currMonth, year: currYear });
+      currMonth++;
+      if (currMonth > 11) {
+        currMonth = 0;
+        currYear++;
+      }
+      iterations++;
+    }
+    setSelectedMonths(months);
+
+    const counts: Record<string, Record<string, number>> = {};
+    months.forEach(m => {
+      const start = new Date(m.year, m.month, 1);
+      const end = new Date(m.year, m.month + 1, 0);
+      counts[`${m.month}-${m.year}`] = getWeekdayCounts(start, end);
+    });
+    setMonthWeekdayCounts(counts);
+  }, [fromMonth, fromYear, tillMonth, tillYear]);
+
+  // 2. Auto-Calculation Engine with Rounding & Frequency Logic
+  useEffect(() => {
+    if (menuItems.length > 0 && selectedMonths.length > 0) {
       const newDemands: Record<string, string> = {};
       const newFrequencies: Record<string, number> = {};
+      const newMonthFrequencies: Record<string, Record<string, number>> = {};
 
       menuItems.forEach(item => {
-        // 1. Calculate Frequency for this item
-        let frequency = 0;
-        const lowerName = item.item_name.toLowerCase();
-        const isStaple = lowerName.includes('तांदूळ') || lowerName.includes('rice') || 
-                         lowerName.includes('तेल') || lowerName.includes('oil') || 
-                         lowerName.includes('मीठ') || lowerName.includes('salt');
+        newMonthFrequencies[item.id] = {};
+        let runningTotal = 0;
 
-        if (isStaple) {
-          frequency = workingDays;
-        } else {
-          // Check schedule for this item code or name
-          schedule.filter(s => s.is_active).forEach(s => {
-            const hasItem = (s.menu_items || []).includes(item.item_code) || 
-                            (s.menu_items || []).includes(item.item_name) ||
-                            (s.main_food_codes || []).includes(item.item_name) ||
-                            (s.main_food_codes || []).includes(item.item_code);
-            
-            if (hasItem) {
-              frequency += (weekdayCounts[s.day_name] || 0);
+        selectedMonths.forEach((m, idx) => {
+          const monthKey = `${m.month}-${m.year}`;
+          const counts = monthWeekdayCounts[monthKey] || {};
+
+          let monthFreq = 0;
+          const lowerName = item.item_name.toLowerCase();
+          const isStaple = lowerName.includes('तांदूळ') || lowerName.includes('rice') ||
+                           lowerName.includes('तेल') || lowerName.includes('oil') ||
+                           lowerName.includes('मीठ') || lowerName.includes('salt');
+
+          if (isStaple) {
+            if (idx === selectedMonths.length - 1) {
+              monthFreq = workingDays - runningTotal;
+            } else {
+              const daysInThisMonth = new Date(m.year, m.month + 1, 0).getDate();
+              const totalDaysInPeriod = selectedMonths.reduce((acc, curr) => acc + new Date(curr.year, curr.month + 1, 0).getDate(), 0);
+              monthFreq = Math.round((workingDays * daysInThisMonth) / totalDaysInPeriod);
             }
-          });
-        }
+          } else {
+            schedule.filter(s => s.is_active).forEach(s => {
+              const hasItem = (s.menu_items || []).includes(item.item_code) ||
+                              (s.menu_items || []).includes(item.item_name) ||
+                              (s.main_food_codes || []).includes(item.item_name) ||
+                              (s.main_food_codes || []).includes(item.item_code);
 
-        newFrequencies[item.id] = frequency;
+              if (hasItem) {
+                monthFreq += (counts[s.day_name] || 0);
+              }
+            });
+          }
+          newMonthFrequencies[item.id][monthKey] = Math.max(0, monthFreq);
+          runningTotal += monthFreq;
+        });
 
-        // 2. Calculate Demand
+        newFrequencies[item.id] = runningTotal;
+
+        // Calculate Demand
         const balance = inventoryBalances[item.item_name] || 0;
         const grams = classGroup === 'PRIMARY' ? Number(item.grams_primary) : Number(item.grams_upper_primary);
-        const required = (enrollmentCount * frequency * grams) / 1000;
+        const required = (enrollmentCount * runningTotal * grams) / 1000;
         const demand = Math.max(0, required - balance);
         newDemands[item.id] = demand.toFixed(3);
       });
 
+      setMonthFrequencies(newMonthFrequencies);
       setItemFrequencies(newFrequencies);
       setCustomDemands(newDemands);
       setIsSaved(false);
     }
-  }, [menuItems, inventoryBalances, enrollmentCount, workingDays, classGroup, schedule, weekdayCounts]);
+  }, [menuItems, inventoryBalances, enrollmentCount, workingDays, classGroup, schedule, monthWeekdayCounts, selectedMonths]);
 
   const fetchReportData = async (id: string) => {
     setLoading(true);
     try {
-      // 0. Calculate Weekday Occurrences for the period
       const fromMonthIndex = marathiMonths.indexOf(fromMonth);
-      const tillMonthIndex = marathiMonths.indexOf(tillMonth);
-      
-      const startDate = new Date(Number(fromYear), fromMonthIndex, 1);
-      const endDate = new Date(Number(tillYear), tillMonthIndex + 1, 0); // Last day of tillMonth
-      
-      const counts = getWeekdayCounts(startDate, endDate);
-      setWeekdayCounts(counts);
-
       const cutoffDate = `${fromYear}-${String(fromMonthIndex + 1).padStart(2, '0')}-01`;
 
       const { data: profile } = await api
@@ -234,6 +277,30 @@ export default function StockDemandReport() {
 
   const handleEdit = () => {
     setIsSaved(false);
+  };
+
+  const handleMonthFreqChange = (itemId: string, monthKey: string, newValue: number) => {
+    setMonthFrequencies(prev => {
+      const itemMonthFreqs = { ...(prev[itemId] || {}), [monthKey]: newValue };
+      const newMonthFrequencies = { ...prev, [itemId]: itemMonthFreqs };
+
+      // Calculate new total frequency
+      const totalFreq = Object.values(itemMonthFreqs).reduce((a, b) => a + Number(b), 0);
+
+      setItemFrequencies(prevTotal => ({ ...prevTotal, [itemId]: totalFreq }));
+
+      // Recalculate demand for this item
+      const item = menuItems.find(i => i.id === itemId);
+      if (item) {
+        const balance = inventoryBalances[item.item_name] || 0;
+        const grams = classGroup === 'PRIMARY' ? Number(item.grams_primary) : Number(item.grams_upper_primary);
+        const required = (enrollmentCount * totalFreq * grams) / 1000;
+        const demand = Math.max(0, required - balance);
+        setCustomDemands(prev => ({ ...prev, [itemId]: demand.toFixed(3) }));
+      }
+
+      return newMonthFrequencies;
+    });
   };
 
   return (
@@ -418,32 +485,59 @@ export default function StockDemandReport() {
               </div>
             </div>
 
-            <table className="w-full print:w-full border-collapse border-2 border-black print:border-black text-base">
+            <table className="w-full print:w-full border-collapse border-2 border-black print:border-black text-sm">
               <thead>
                 <tr className="bg-slate-50 print:bg-gray-100">
-                  <th className="border border-black print:border-black print:text-black w-12 p-2 py-3 print:py-1 text-center">अ. क्र.</th>
-                  <th className="border border-black print:border-black print:text-black w-[30%] p-2 py-3 print:py-1 text-left">धान्यादी माल</th>
-                  <th className="border border-black print:border-black print:text-black w-[15%] p-2 py-3 print:py-1 text-center">वापराचे एकूण दिवस</th>
-                  <th className="border border-black print:border-black print:text-black w-[15%] p-2 py-3 print:py-1 text-right">मागील माह अखेर शिल्लक</th>
-                  <th className="border border-black print:border-black print:text-black w-[15%] p-2 py-3 print:py-1 text-right">पटानुसार आवश्यक माल</th>
-                  <th className="border border-black print:border-black print:text-black w-[15%] p-2 py-3 print:py-1 text-right text-lg print:text-base">निव्वळ मागणी</th>
+                  <th className="border border-black print:border-black print:text-black w-10 p-2 py-3 print:py-1 text-center">अ. क्र.</th>
+                  <th className="border border-black print:border-black print:text-black w-[25%] p-2 py-3 print:py-1 text-left">धान्यादी माल</th>
+                  
+                  {selectedMonths.map(m => (
+                    <th key={`${m.month}-${m.year}`} className="border border-black print:border-black print:text-black w-[8%] p-1 py-3 print:py-1 text-center text-[11px] leading-tight">
+                      {m.name} <br/> वापराचे दिवस
+                    </th>
+                  ))}
+
+                  <th className="border border-black print:border-black print:text-black w-[10%] p-2 py-3 print:py-1 text-center font-black">वापराचे एकूण दिवस</th>
+                  <th className="border border-black print:border-black print:text-black w-[12%] p-2 py-3 print:py-1 text-right">मागील माह अखेर शिल्लक</th>
+                  <th className="border border-black print:border-black print:text-black w-[12%] p-2 py-3 print:py-1 text-right">पटानुसार आवश्यक माल</th>
+                  <th className="border border-black print:border-black print:text-black w-[15%] p-2 py-3 print:py-1 text-right text-base print:text-sm">निव्वळ मागणी</th>
                 </tr>
               </thead>
               <tbody>
                 {menuItems.map((item: any, idx: number) => {
                   const balance = inventoryBalances[item.item_name] || 0;
-                  const frequency = itemFrequencies[item.id] || 0;
+                  const totalFrequency = itemFrequencies[item.id] || 0;
                   const grams = classGroup === 'PRIMARY' ? Number(item.grams_primary) : Number(item.grams_upper_primary);
-                  const required = (enrollmentCount * frequency * grams) / 1000;
+                  const required = (enrollmentCount * totalFrequency * grams) / 1000;
 
                   return (
                     <tr key={item.id}>
                       <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-center font-normal">{idx + 1}</td>
                       <td className="border border-black print:border-black print:text-black p-2 print:py-1 font-medium">{item.item_name}</td>
-                      <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-center font-bold text-slate-600 bg-slate-50/50">{frequency}</td>
+                      
+                      {selectedMonths.map(m => {
+                        const monthKey = `${m.month}-${m.year}`;
+                        const freq = (monthFrequencies[item.id] || {})[monthKey] || 0;
+                        return (
+                          <td key={monthKey} className="border border-black print:border-black print:text-black p-1 print:py-1 text-center">
+                            {!isSaved ? (
+                              <input
+                                type="number"
+                                value={freq}
+                                onChange={(e) => handleMonthFreqChange(item.id, monthKey, Number(e.target.value))}
+                                className="w-12 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-700 outline-none focus:border-blue-400"
+                              />
+                            ) : (
+                              <span className="font-bold text-slate-600">{freq}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-center font-black bg-slate-50/50">{totalFrequency}</td>
                       <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-right font-normal">{balance.toFixed(3)}</td>
                       <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-right font-normal">{required.toFixed(3)}</td>
-                      <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-right font-bold text-lg print:text-base bg-gray-50 print:bg-transparent">
+                      <td className="border border-black print:border-black print:text-black p-2 print:py-1 text-right font-bold text-base print:text-sm bg-gray-50 print:bg-transparent">
                         {!isSaved ? (
                           <input
                             type="number"
@@ -463,7 +557,7 @@ export default function StockDemandReport() {
                 })}
                 {menuItems.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="border border-black print:border-black print:text-black p-6 text-center text-gray-500 italic">No menu items configured...</td>
+                    <td colSpan={6 + selectedMonths.length} className="border border-black print:border-black print:text-black p-6 text-center text-gray-500 italic">No menu items configured...</td>
                   </tr>
                 )}
               </tbody>
