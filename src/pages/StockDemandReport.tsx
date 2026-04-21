@@ -488,11 +488,11 @@ export default function StockDemandReport() {
             <table className="w-full print:w-full border-collapse border-2 border-black print:border-black text-sm">
               <thead>
                 <tr className="bg-slate-50 print:bg-gray-100">
-                  <th className="border border-black print:border-black print:text-black w-10 p-2 py-3 print:py-1 text-center">अ. क्र.</th>
+                  <th className="border border-black print:border-black print:text-black w-12 p-2 py-3 print:py-1 text-center">अ. क्र.</th>
                   <th className="border border-black print:border-black print:text-black w-[25%] p-2 py-3 print:py-1 text-left">धान्यादी माल</th>
                   
                   {selectedMonths.map(m => (
-                    <th key={`${m.month}-${m.year}`} className="border border-black print:border-black print:text-black w-[8%] p-1 py-3 print:py-1 text-center text-[11px] leading-tight">
+                    <th key={`${m.month}-${m.year}`} className="border border-black print:border-black print:text-black w-[10%] p-2 py-3 print:py-1 text-center">
                       {m.name} <br/> वापराचे दिवस
                     </th>
                   ))}
