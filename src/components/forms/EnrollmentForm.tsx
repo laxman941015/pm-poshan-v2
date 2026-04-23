@@ -51,7 +51,9 @@ export default function EnrollmentForm({ userId, onSuccess }: EnrollmentFormProp
 
   // SaaS / Subscription States
   const [pricing, setPricing] = useState<{id: string, section_type: string, base_price: number}[]>([]);
-  const isPaid = user?.saas_payment_status === 'paid';
+  const expiryDate = user?.saas_expiry_date ? new Date(user.saas_expiry_date) : null;
+  const isExpired = expiryDate ? expiryDate.getTime() < new Date().getTime() : false;
+  const isPaid = (user?.saas_payment_status === 'paid' || user?.saas_payment_status === 'trial') && !isExpired;
   const currentPlan = user?.saas_plan_type || 'primary';
   const { refreshProfile } = useAuth();
   
@@ -131,7 +133,7 @@ export default function EnrollmentForm({ userId, onSuccess }: EnrollmentFormProp
           setHasUpperPrimary(savedUpper);
         } else {
           // Fallback: If DB columns are fresh/null, default based on plan or show both
-          if (profileData.saas_payment_status === 'paid') {
+          if (profileData.saas_payment_status === 'paid' || profileData.saas_payment_status === 'trial') {
             const plan = profileData.saas_plan_type;
             if (plan === 'primary') {
               setHasPrimary(true);

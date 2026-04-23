@@ -1,13 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Query, Request, Response
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Query, Request, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import shutil, os, uuid
+import shutil, os, uuid, secrets
+from datetime import datetime, timedelta, date, timezone
 from dotenv import load_dotenv
 
+# Load environment at the very start
 load_dotenv()
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 import models, schemas, auth, crud
 from database import SessionLocal, engine, get_db
+from email_utils import send_reset_password_email
 from typing import Dict, Any, List, Optional, Union
 from datetime import timedelta, date
 from sqlalchemy.dialects.postgresql import UUID
@@ -125,6 +129,81 @@ def logout(response: Response):
     )
     return {"message": "Logged out successfully"}
 
+@app.get("/test-reset")
+def test_reset():
+    return {"message": "Reset system is online"}
+
+@app.post("/forgot-password")
+async def forgot_password(
+    request: schemas.PasswordResetRequest, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    print(f"DEBUG: Received forgot-password request for {request.email}")
+    # 🔍 Case-insensitive search
+    user = db.query(models.Profile).filter(func.lower(models.Profile.email) == func.lower(request.email)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    now = datetime.now(timezone.utc)
+    
+    if user.last_otp_request_time:
+        # Make sure we compare timezone-aware datetimes
+        last_req = user.last_otp_request_time
+        if last_req.tzinfo is None:
+            last_req = last_req.replace(tzinfo=timezone.utc)
+            
+        time_since_last = now - last_req
+        
+        # Check 24-hour ban (max 3 attempts)
+        if (user.otp_request_count or 0) >= 3:
+            if time_since_last < timedelta(hours=24):
+                hours_left = 24 - (time_since_last.total_seconds() / 3600)
+                raise HTTPException(status_code=429, detail=f"Maximum attempts reached. Please try again in {hours_left:.1f} hours.")
+            else:
+                user.otp_request_count = 0 # Reset after 24 hours
+                
+        # Check 3-minute cooldown
+        if time_since_last < timedelta(minutes=3):
+            raise HTTPException(status_code=429, detail="Please wait 3 minutes before requesting another OTP.")
+
+    # Generate 6-digit OTP
+    otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    user.reset_token = otp
+    user.reset_token_expiry = now + timedelta(hours=1)
+    user.otp_request_count = (user.otp_request_count or 0) + 1
+    user.last_otp_request_time = now
+    db.commit()
+    
+    # Send Email in background
+    try:
+        background_tasks.add_task(send_reset_password_email, user.email, otp)
+    except Exception as e:
+        print(f"❌ Error queuing email: {e}")
+    
+    return {
+        "status": "success", 
+        "message": "If this email is registered, you will receive a reset link shortly."
+    }
+
+@app.post("/reset-password")
+def reset_password(request: schemas.PasswordResetConfirm, db: Session = Depends(get_db)):
+    user = db.query(models.Profile).filter(
+        models.Profile.reset_token == request.token,
+        models.Profile.reset_token_expiry > func.now()
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Update password
+    user.hashed_password = auth.get_password_hash(request.new_password)
+    user.reset_token = None
+    user.reset_token_expiry = None
+    db.commit()
+    
+    return {"status": "success", "message": "Password has been reset successfully"}
+
 # 2. CREATE a Profile (Updated with Password Hashing)
 @app.post("/profiles/", response_model=schemas.Profile)
 def create_profile(profile: schemas.ProfileCreate, db: Session = Depends(get_db)):
@@ -185,7 +264,13 @@ def register_teacher(data: schemas.TeacherRegistrationFinal, db: Session = Depen
         principal_name=data.step1_data.principal_name,
         principal_contact_number=data.step1_data.principal_contact_number,
         school_udise=udise,
-        is_onboarded=False
+        is_onboarded=False,
+        saas_plan_type="combo",
+        # Reload trigger
+        saas_payment_status="trial",
+        saas_expiry_date=datetime.now(timezone.utc) + timedelta(days=7),
+        has_primary=True,
+        has_upper_primary=True
     )
     db.add(db_profile)
     db.commit()
@@ -194,7 +279,18 @@ def register_teacher(data: schemas.TeacherRegistrationFinal, db: Session = Depen
 
 # 3. GET a Profile (Current User)
 @app.get("/profiles/me", response_model=schemas.Profile)
-def read_current_profile(current_user: models.Profile = Depends(auth.get_current_user)):
+def read_current_profile(current_user: models.Profile = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    # Auto-fix for users who registered during backend restart
+    if current_user.saas_payment_status == "unpaid" and current_user.created_at:
+        now_utc = datetime.now(timezone.utc)
+        created_utc = current_user.created_at if current_user.created_at.tzinfo else current_user.created_at.replace(tzinfo=timezone.utc)
+        if (now_utc - created_utc).days <= 2:
+            current_user.saas_payment_status = "trial"
+            current_user.saas_plan_type = "combo"
+            current_user.saas_expiry_date = created_utc + timedelta(days=7)
+            db.commit()
+            db.refresh(current_user)
+            
     return current_user
 
 # 4. GET a Profile by ID (Admin or Specific Lookup)

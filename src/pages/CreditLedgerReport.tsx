@@ -24,6 +24,7 @@ export default function CreditLedgerReport() {
   const { user } = useAuth();
   const userId = user?.id || null;
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const marathiMonths = ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'];
   const years = ['2024', '2025', '2026', '2027'];
@@ -83,6 +84,7 @@ export default function CreditLedgerReport() {
   const fetchCreditData = async (id: string, month: number, year: number, forceSync = false, scope = selectedScope) => {
     setLoading(!forceSync);
     setIsSyncing(forceSync);
+    setIsSaved(false);
 
     try {
       // 2. Fetch Menu Master for columns
@@ -219,65 +221,88 @@ export default function CreditLedgerReport() {
       <div className="w-full max-w-[1400px] mx-auto mt-4 pb-20 print:p-0 print:m-4">
 
         {/* Top Control Bar */}
-        <div className="mb-6 p-5 bg-white rounded-xl shadow-xl border border-slate-200 print:hidden flex flex-col md:flex-row gap-5 justify-between items-center">
-          <div className="flex flex-col">
-            <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-              <AlertTriangle className="text-amber-500" size={20} /> उसणे धान्य अहवाल (Credit Stock Ledger)
+        <div className="mb-6 p-4 md:p-5 bg-white rounded-2xl md:rounded-xl shadow-xl border border-slate-200 print:hidden flex flex-col md:flex-row gap-5 justify-between items-center text-center md:text-left">
+          <div className="flex flex-col items-center md:items-start w-full md:w-auto">
+            <h2 className="text-sm md:text-lg font-black text-slate-800 uppercase tracking-tight flex items-center justify-center md:justify-start gap-2">
+              <AlertTriangle className="text-amber-500 shrink-0" size={18} /> 
+              <span>उसणे धान्य अहवाल (Credit Stock Ledger)</span>
             </h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Borrowed Stock Tracking System</p>
+            <p className="text-[9px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1.5 md:mt-0.5">Borrowed Stock Tracking System</p>
           </div>
 
-          <div className="flex items-center gap-4">
-            <select
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(Number(e.target.value))}
-              className="border-2 border-slate-200 rounded-lg px-4 py-2 font-bold text-sm outline-none focus:border-amber-500"
-              title="महिन्याची निवड करा (Select Month)"
-            >
-              {marathiMonths.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-            </select>
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(Number(e.target.value))}
-              className="border-2 border-slate-200 rounded-lg px-4 py-2 font-bold text-sm outline-none focus:border-amber-500"
-              title="वर्षाची निवड करा (Select Year)"
-            >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+          <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+            
+            {/* Filters Row (Mobile: Side by Side) */}
+            <div className="flex gap-2 w-full md:w-auto justify-center">
+              <select
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(Number(e.target.value))}
+                className="border border-slate-200 rounded-xl md:rounded-lg px-3 py-2.5 md:py-2 font-bold text-xs outline-none focus:border-amber-500 w-full md:w-auto bg-slate-50 md:bg-transparent"
+                title="महिन्याची निवड करा (Select Month)"
+              >
+                {marathiMonths.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+              </select>
+              <select
+                value={selectedYear}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+                className="border border-slate-200 rounded-xl md:rounded-lg px-3 py-2.5 md:py-2 font-bold text-xs outline-none focus:border-amber-500 w-full md:w-auto bg-slate-50 md:bg-transparent"
+                title="वर्षाची निवड करा (Select Year)"
+              >
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
 
             {hasPrimary && hasUpperPrimary && (
-              <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200 shadow-inner">
+              <div className="flex bg-slate-100/80 p-1 rounded-xl md:rounded-2xl border border-slate-200 shadow-inner w-full md:w-auto">
                 <button
                   onClick={() => setSelectedScope('primary')}
-                  className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${selectedScope === 'primary' ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg md:rounded-xl transition-all ${selectedScope === 'primary' ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   I-V (Primary)
                 </button>
                 <button
                   onClick={() => setSelectedScope('upper_primary')}
-                  className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${selectedScope === 'upper_primary' ? 'bg-white text-purple-600 shadow-sm border border-purple-100' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg md:rounded-xl transition-all ${selectedScope === 'upper_primary' ? 'bg-white text-purple-600 shadow-sm border border-purple-100' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   VI-VIII (Upper)
                 </button>
               </div>
             )}
 
-            <div className="flex flex-col items-end">
-              <button
-                onClick={() => fetchCreditData(userId!, selectedMonth, selectedYear, true, selectedScope)}
-                className="bg-amber-50 text-amber-700 px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 hover:bg-amber-100 transition-all border border-amber-200"
-              >
-                <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Live
-              </button>
-              {lastSynced && (
-                <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">
-                  Last Sync: {lastSynced}
-                </span>
+            {/* Actions Row */}
+            <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+              <div className="flex flex-col items-center w-1/2 md:w-auto">
+                <button
+                  onClick={() => fetchCreditData(userId!, selectedMonth, selectedYear, true, selectedScope)}
+                  className="bg-amber-50 text-amber-700 px-3 py-3 md:py-2 rounded-xl md:rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:bg-amber-100 transition-all border border-amber-200 w-full"
+                >
+                  <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> Sync Live
+                </button>
+                {lastSynced && (
+                  <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-tighter absolute translate-y-10 md:static md:translate-y-0">
+                    Last Sync: {lastSynced}
+                  </span>
+                )}
+              </div>
+              
+              {!isSaved ? (
+                <button 
+                  onClick={() => setIsSaved(true)} 
+                  disabled={loading || !creditData}
+                  className="bg-emerald-600 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-black text-[10px] md:text-xs uppercase flex items-center justify-center gap-2 shadow-lg w-1/2 md:w-auto transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <CheckCircle2 size={16} /> Verify & Lock
+                </button>
+              ) : (
+                <button 
+                  onClick={() => window.print()} 
+                  className="bg-slate-900 text-white px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-black text-xs uppercase flex items-center justify-center gap-2 shadow-lg w-1/2 md:w-auto transition-all active:scale-95"
+                >
+                  <Printer size={16} /> Print
+                </button>
               )}
             </div>
-            <button onClick={() => window.print()} className="bg-slate-900 text-white px-6 py-2 rounded-lg font-black text-xs uppercase flex items-center gap-2 shadow-lg">
-              <Printer size={16} /> Print Register
-            </button>
+
           </div>
         </div>
 

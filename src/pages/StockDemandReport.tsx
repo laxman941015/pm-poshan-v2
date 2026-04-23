@@ -571,7 +571,8 @@ export default function StockDemandReport() {
               </div>
             </div>
 
-            <table className="w-full print:w-full border-collapse border-2 border-black print:border-black text-sm">
+            <div className="w-full overflow-x-auto print:overflow-visible pb-4">
+              <table className="w-full min-w-[1000px] print:min-w-full border-collapse border-2 border-black print:border-black text-sm">
               <thead>
                 <tr className="bg-slate-50 print:bg-gray-100">
                   <th className="border border-black print:border-black print:text-black w-12 p-2 py-3 print:py-1 text-center">अ. क्र.</th>
@@ -648,6 +649,7 @@ export default function StockDemandReport() {
                 )}
               </tbody>
             </table>
+            </div>
 
             <div className="flex justify-between w-full mt-10 print:mt-14 px-10 print:px-4 text-sm font-bold text-black print:text-black">
               <div className="text-center">

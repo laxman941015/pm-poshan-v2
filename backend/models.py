@@ -35,6 +35,10 @@ class Profile(Base):
     principal_name = Column(String, nullable=True)
     principal_contact_number = Column(String, nullable=True)
     school_udise = Column(String(11), unique=True, nullable=True)
+    reset_token = Column(String, nullable=True)
+    reset_token_expiry = Column(DateTime(timezone=True), nullable=True)
+    otp_request_count = Column(Integer, default=0)
+    last_otp_request_time = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class DailyLog(Base):

@@ -110,6 +110,20 @@ async def verify_success(
             
             # 3. Update User Profile SaaS Status
             cast(Any, current_user).saas_payment_status = "paid"
+            
+            plan_type = payload.get("plan_type")
+            if plan_type:
+                cast(Any, current_user).saas_plan_type = plan_type
+                if plan_type == 'primary':
+                    cast(Any, current_user).has_primary = True
+                    cast(Any, current_user).has_upper_primary = False
+                elif plan_type == 'upper_primary':
+                    cast(Any, current_user).has_primary = False
+                    cast(Any, current_user).has_upper_primary = True
+                elif plan_type == 'combo':
+                    cast(Any, current_user).has_primary = True
+                    cast(Any, current_user).has_upper_primary = True
+
             # Calculate expiry: March 31st of the next year
             now = datetime.now()
             expiry_year = now.year + 1 if now.month > 3 else now.year

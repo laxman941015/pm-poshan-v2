@@ -4,6 +4,7 @@ import React, { Suspense } from 'react'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'))
 const AdminSaaSDashboard = React.lazy(() => import('./pages/AdminSaaSDashboard'))
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

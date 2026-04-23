@@ -164,6 +164,11 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     className="block w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/50 transition-all outline-none text-slate-700 placeholder-slate-400 font-medium shadow-sm hover:border-gray-300"
                   />
+                  <div className="flex justify-end mt-2">
+                    <Link to="/forgot-password" title="Click to reset your password" id="forgot-password-link" className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline transition-all">
+                      Forgot Password?
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Submit Button */}

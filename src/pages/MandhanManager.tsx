@@ -306,7 +306,7 @@ export default function MandhanManager() {
               <CreditCard className="text-white" size={32} />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">Mandhan Manager</h1>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">Mandhan Manager</h1>
               <h2 className="text-lg font-bold text-slate-600 mt-2">मानधन व खर्च व्यवस्थापन</h2>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-3 flex items-center gap-2">
                 <ShieldCheck size={12} className="text-emerald-500" />
@@ -321,7 +321,7 @@ export default function MandhanManager() {
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="bg-transparent px-4 py-2 font-black text-slate-700 text-xs outline-none w-44"
+                  className="bg-transparent px-2 md:px-4 py-2 font-black text-slate-700 text-xs outline-none w-full md:w-44"
                   title="निवडलेले वर्ष (Selected Year)"
                 >
                   {years.map(y => (
@@ -334,7 +334,7 @@ export default function MandhanManager() {
                 {(!profile || profile.has_primary) && (
                   <button 
                     onClick={() => setSelectedScope('primary')}
-                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedScope === 'primary' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 md:px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedScope === 'primary' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     इ. १ ते ५ वी
                   </button>
@@ -342,7 +342,7 @@ export default function MandhanManager() {
                 {profile?.has_upper_primary && (
                   <button 
                     onClick={() => setSelectedScope('upper_primary')}
-                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedScope === 'upper_primary' ? 'bg-white text-purple-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 md:px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedScope === 'upper_primary' ? 'bg-white text-purple-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     इ. ६ ते ८ वी
                   </button>
@@ -359,9 +359,9 @@ export default function MandhanManager() {
         )}
 
         {/* Desktop Table View */}
-        <div className="bg-white rounded-[40px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+        <div className="hidden md:block bg-white rounded-[40px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] border border-slate-100 overflow-hidden relative">
+          <div className="overflow-x-auto pb-4 scroll-smooth">
+            <table className="w-full min-w-[900px] text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">महिना (Month)</th>
@@ -443,14 +443,13 @@ export default function MandhanManager() {
                             disabled={isSyncing || !data.is_applicable}
                             className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all active:scale-90 disabled:opacity-30"
                             title="माहिती सिंक करा (Calculate from Logs)"
-                            aria-label={`Sync data for ${m.name}`}
                           >
                             <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
                           </button>
                           <button 
                             onClick={() => handleSaveMonth(idx)}
                             disabled={isSaving}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-[20px] font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-lg ${
+                            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-[20px] font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-lg min-w-[100px] ${
                               isSaving 
                                 ? 'bg-slate-100 text-slate-400' 
                                 : savedMonths.has(idx)
@@ -471,11 +470,108 @@ export default function MandhanManager() {
           </div>
         </div>
 
+        {/* Mobile View (Cards) */}
+        <div className="block md:hidden space-y-6">
+          {marathiMonths.map((m, idx) => {
+            const data = mandhanData[idx] || { staff_total: 0, fuel_total: 0, veg_total: 0, is_applicable: true };
+            const isSyncing = syncing === idx;
+            const isSaving = saving === idx;
+
+            return (
+              <div key={idx} className={`bg-white rounded-[32px] p-6 shadow-xl border border-slate-100 transition-all ${!data.is_applicable ? 'opacity-60 grayscale' : ''}`}>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm ${data.is_applicable ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-800 text-base tracking-tight">{m.name}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
+                        {m.index >= 4 ? selectedYear : selectedYear + 1}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => toggleApplicable(idx)}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${data.is_applicable ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}
+                  >
+                    {data.is_applicable ? 'Active' : 'Inactive'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">मानधन (Staff)</label>
+                    <div className="relative">
+                      <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <input 
+                        type="number"
+                        value={data.staff_total}
+                        disabled={!data.is_applicable}
+                        onChange={(e) => {
+                          const newData = [...mandhanData];
+                          newData[idx].staff_total = Number(e.target.value);
+                          setMandhanData(newData);
+                        }}
+                        className="bg-slate-50 border border-slate-100 rounded-xl py-2.5 pl-8 pr-2 w-full font-black text-slate-700 text-xs outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1 text-right mr-1">इंधन/भाजीपाला</label>
+                    <div className="relative">
+                      <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <input 
+                        type="number"
+                        value={(data.fuel_total || 0) + (data.veg_total || 0)}
+                        disabled={!data.is_applicable}
+                        onChange={(e) => {
+                          const newData = [...mandhanData];
+                          newData[idx].fuel_total = Number(e.target.value);
+                          newData[idx].veg_total = 0;
+                          setMandhanData(newData);
+                        }}
+                        className="bg-slate-50 border border-slate-100 rounded-xl py-2.5 pl-8 pr-2 w-full font-black text-slate-700 text-xs outline-none focus:bg-white focus:border-indigo-500 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 mt-8">
+                  <button 
+                    onClick={() => handleSyncMonth(idx, m.index)}
+                    disabled={isSyncing || !data.is_applicable}
+                    className="flex-1 bg-slate-50 text-slate-600 font-black uppercase text-[10px] tracking-widest py-3.5 rounded-2xl border border-slate-100 flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                    Sync
+                  </button>
+                  <button 
+                    onClick={() => handleSaveMonth(idx)}
+                    disabled={isSaving}
+                    className={`flex-[2] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-lg ${
+                      isSaving 
+                        ? 'bg-slate-100 text-slate-400' 
+                        : savedMonths.has(idx)
+                          ? 'bg-emerald-500 text-white shadow-emerald-100'
+                          : 'bg-slate-900 text-white'
+                    }`}
+                  >
+                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : savedMonths.has(idx) ? <CheckCircle2 size={14} /> : <Save size={14} />}
+                    {isSaving ? 'Saving' : savedMonths.has(idx) ? 'Saved' : 'Save Details'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* Summary Card */}
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[40px] text-white shadow-2xl shadow-indigo-200">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-3">Total Staff Honorarium</p>
-            <h3 className="text-3xl font-black tracking-tighter">₹ {mandhanData.reduce((sum, r) => sum + (r.staff_total || 0), 0).toLocaleString()}</h3>
+            <h3 className="text-3xl font-black tracking-tighter break-words">₹ {mandhanData.reduce((sum, r) => sum + (r.staff_total || 0), 0).toLocaleString()}</h3>
             <div className="mt-6 flex items-center gap-2">
               <div className="w-8 h-1 bg-white/20 rounded-full" />
               <p className="text-[10px] font-bold uppercase opacity-40">Annual Estimate</p>
@@ -483,7 +579,7 @@ export default function MandhanManager() {
           </div>
           <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-100/50">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Total Fuel/Veg Cost</p>
-            <h3 className="text-3xl font-black text-slate-800 tracking-tighter">₹ {(mandhanData.reduce((sum, r) => sum + (r.fuel_total || 0), 0) + mandhanData.reduce((sum, r) => sum + (r.veg_total || 0), 0)).toLocaleString()}</h3>
+            <h3 className="text-3xl font-black text-slate-800 tracking-tighter break-words">₹ {(mandhanData.reduce((sum, r) => sum + (r.fuel_total || 0), 0) + mandhanData.reduce((sum, r) => sum + (r.veg_total || 0), 0)).toLocaleString()}</h3>
             <div className="mt-6 flex items-center gap-2">
               <div className="w-8 h-1 bg-indigo-100 rounded-full" />
               <p className="text-[10px] font-bold text-slate-300 uppercase">Combined Annual Estimate</p>

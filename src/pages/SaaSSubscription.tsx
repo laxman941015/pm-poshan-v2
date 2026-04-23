@@ -95,7 +95,8 @@ const SaaSSubscription: React.FC = () => {
             const verifyRes = await api.post('/api/payments/verify-success', {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
+              razorpay_signature: response.razorpay_signature,
+              plan_type: plan.id
             });
 
             if (verifyRes.status === "SUCCESS") {
@@ -147,6 +148,7 @@ const SaaSSubscription: React.FC = () => {
     }
   };
 
+  const isTrial = user?.saas_payment_status === 'trial';
   const isPaid = user?.saas_payment_status === 'PAID' || user?.saas_payment_status === 'paid';
 
   return (
@@ -167,15 +169,15 @@ const SaaSSubscription: React.FC = () => {
         </div>
 
         {/* Current Status Banner */}
-        {isPaid && (
-          <div className="max-w-4xl mx-auto mb-12 bg-emerald-500 rounded-3xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-emerald-200/50 border border-emerald-400/30 overflow-hidden relative group">
+        {(isPaid || isTrial) && (
+          <div className={`max-w-4xl mx-auto mb-12 rounded-3xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl overflow-hidden relative group ${isTrial ? 'bg-purple-500 shadow-purple-200/50 border border-purple-400/30' : 'bg-emerald-500 shadow-emerald-200/50 border border-emerald-400/30'}`}>
             <Zap className="absolute -right-8 -bottom-8 w-48 h-48 text-white/10 rotate-12 group-hover:scale-110 transition-transform duration-700" />
             <div className="flex items-center gap-6 relative z-10">
               <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-md">
                 <ShieldCheck size={32} />
               </div>
               <div>
-                <h3 className="text-xl font-black uppercase tracking-tighter">Your Subscription is Active!</h3>
+                <h3 className="text-xl font-black uppercase tracking-tighter">{isTrial ? "Your Free Trial is Active!" : "Your Subscription is Active!"}</h3>
                 <p className="text-white/80 font-bold text-xs uppercase tracking-widest mt-1">Thank you for supporting digital PM-POSHAN reporting.</p>
               </div>
             </div>

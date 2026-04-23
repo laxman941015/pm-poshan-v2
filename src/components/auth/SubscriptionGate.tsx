@@ -11,7 +11,10 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
   const { user, role } = useAuth();
   const location = useLocation();
   
-  const isPaid = user?.saas_payment_status === 'paid';
+  const expiryDate = user?.saas_expiry_date ? new Date(user.saas_expiry_date) : null;
+  const isExpired = expiryDate ? expiryDate.getTime() < new Date().getTime() : false;
+  
+  const isPaid = (user?.saas_payment_status === 'paid' || user?.saas_payment_status === 'trial') && !isExpired;
   const isMaster = role === 'master';
 
   // 🚪 FREE ROUTES: These pages are NEVER locked

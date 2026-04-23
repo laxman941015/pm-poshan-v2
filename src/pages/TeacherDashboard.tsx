@@ -238,7 +238,7 @@ export default function TeacherDashboard() {
         
         {/* Superior Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          <div className="flex-1 max-w-sm">
+          <div className="flex-1 w-full">
             <SubscriptionStatus />
           </div>
           <div className="flex flex-wrap gap-4">
