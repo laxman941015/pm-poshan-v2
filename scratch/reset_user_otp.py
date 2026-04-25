@@ -2,11 +2,14 @@
 import sys
 import os
 
-# Add the root directory to path so we can import models and database
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from backend.database import SessionLocal
-from backend.models import Profile
+# No need to add path, we are running in the app root inside Docker
+try:
+    from database import SessionLocal
+    from models import Profile
+except ImportError:
+    # Fallback for local testing
+    from backend.database import SessionLocal
+    from backend.models import Profile
 
 def reset_users():
     db = SessionLocal()
