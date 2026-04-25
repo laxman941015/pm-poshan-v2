@@ -5,9 +5,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 def get_mail_config():
-    # Force reload env from the backend folder
-    dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-    load_dotenv(dotenv_path)
+    # Environment variables are automatically loaded by the main app and Docker
+
     
     return ConnectionConfig(
         MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
