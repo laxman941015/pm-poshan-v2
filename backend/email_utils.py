@@ -2,6 +2,7 @@ import os
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType  # type: ignore
 from pydantic import EmailStr
 from dotenv import load_dotenv
+from datetime import datetime
 
 def get_mail_config():
     # Force reload env from the backend folder
@@ -10,18 +11,23 @@ def get_mail_config():
     
     return ConnectionConfig(
         MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
-        MAIL_PASSWORD = os.getenv("MAIL_PASSWORD"),
+        MAIL_PASSWORD = os.getenv("MAIL_PASSWORD").replace(" ", "") if os.getenv("MAIL_PASSWORD") else None,
         MAIL_FROM = os.getenv("MAIL_FROM"),
         MAIL_PORT = int(os.getenv("MAIL_PORT", 587)),
         MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
         MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "True").lower() == "true",
         MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "False").lower() == "true",
         USE_CREDENTIALS = True,
-        VALIDATE_CERTS = True
+        VALIDATE_CERTS = True,
+        MAIL_FROM_NAME = "PM-POSHAN Tracker"
     )
 
 async def send_reset_password_email(email: EmailStr, otp: str):
     conf = get_mail_config()
+    log_file = "email_debug.log"
+    
+    with open(log_file, "a") as f:
+        f.write(f"[{datetime.now()}] Attempting to send OTP to {email}...\n")
     
     html = f"""
     <html>
@@ -50,5 +56,12 @@ async def send_reset_password_email(email: EmailStr, otp: str):
         subtype=MessageType.html
     )
 
-    fm = FastMail(conf)
-    await fm.send_message(message)
+    try:
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        with open(log_file, "a") as f:
+            f.write(f"[{datetime.now()}] ✅ OTP sent successfully to {email}\n")
+    except Exception as e:
+        with open(log_file, "a") as f:
+            f.write(f"[{datetime.now()}] ❌ Failed to send OTP to {email}: {str(e)}\n")
+        print(f"ERROR sending email: {e}")
