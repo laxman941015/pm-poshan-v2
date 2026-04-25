@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 def get_mail_config():
-    # Environment variables are automatically loaded by the main app and Docker
-
+    # 🔍 Emergency Debug: Force load and print what we see
+    load_dotenv("/app/.env")
+    print(f"DEBUG MAIL: USERNAME={os.getenv('MAIL_USERNAME')}, SERVER={os.getenv('MAIL_SERVER')}")
     
     return ConnectionConfig(
         MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
