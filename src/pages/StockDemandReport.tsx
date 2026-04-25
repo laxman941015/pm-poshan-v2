@@ -611,6 +611,7 @@ export default function StockDemandReport() {
                               <input
                                 type="number"
                                 value={freq}
+                                aria-label={`${item.item_name} ${m.name} वापर दिवस (Usage Days)`}
                                 onChange={(e) => handleMonthFreqChange(item.id, monthKey, Number(e.target.value))}
                                 className="w-12 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-700 outline-none focus:border-blue-400"
                               />

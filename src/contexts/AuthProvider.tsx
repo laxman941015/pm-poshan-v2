@@ -59,33 +59,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include'
-      });
+    // Note: We don't call setLoading(true) here because it would trigger the 
+    // full-screen "Initializing Portal" loader in App.tsx, causing the LoginPage 
+    // to unmount and lose its error state.
+    const response = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      credentials: 'include'
+    });
 
-      if (!response.ok) {
+    if (!response.ok) {
+      let errorMessage = 'Access Denied: Invalid credentials';
+      try {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Access Denied: Invalid credentials');
+        if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail;
+        } else if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map((err: any) => err.msg).join(', ');
+        } else if (errorData.detail) {
+           errorMessage = JSON.stringify(errorData.detail);
+        }
+      } catch (e) {
+        // If response is not JSON, stick to default errorMessage
+        console.error("Failed to parse error response as JSON", e);
       }
-
-      // 🍪 Token is now automatically handled via HttpOnly cookie
-      // We just need to load the profile to sync state
-      const profileRes = await fetch(`${API_URL}/profiles/me`, {
-        credentials: 'include'
-      });
-      const profileData = await profileRes.json();
-      
-      setSession({ access_token: 'cookie-managed', user: profileData });
-      setUser(profileData);
-      setRole(profileData.role || 'teacher');
-    } finally {
-      setLoading(false);
+      throw new Error(errorMessage);
     }
+
+    // 🍪 Token is now automatically handled via HttpOnly cookie
+    // We just need to load the profile to sync state
+    const profileRes = await fetch(`${API_URL}/profiles/me`, {
+      credentials: 'include'
+    });
+    const profileData = await profileRes.json();
+    
+    setSession({ access_token: 'cookie-managed', user: profileData });
+    setUser(profileData);
+    setRole(profileData.role || 'teacher');
   };
 
   const refreshProfile = async () => {

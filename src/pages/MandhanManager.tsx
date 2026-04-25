@@ -507,6 +507,7 @@ export default function MandhanManager() {
                       <input 
                         type="number"
                         value={data.staff_total}
+                        aria-label={`मानधन खर्च (${m.name})`}
                         disabled={!data.is_applicable}
                         onChange={(e) => {
                           const newData = [...mandhanData];
@@ -525,6 +526,7 @@ export default function MandhanManager() {
                       <input 
                         type="number"
                         value={(data.fuel_total || 0) + (data.veg_total || 0)}
+                        aria-label={`इंधन व भाजीपाला खर्च (${m.name})`}
                         disabled={!data.is_applicable}
                         onChange={(e) => {
                           const newData = [...mandhanData];

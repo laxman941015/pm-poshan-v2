@@ -83,12 +83,7 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section 
-        className="pb-10 px-4 text-center relative mt-[130px] md:mt-[160px] min-h-[300px] md:min-h-[650px] flex items-end justify-center overflow-hidden"
-        style={{
-          backgroundImage: `url('https://images.onlymyhealth.com/imported/images/2022/September/08_Sep_2022/nutritonal_month_main.jpg')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        className="pb-10 px-4 text-center relative mt-[130px] md:mt-[160px] min-h-[300px] md:min-h-[650px] flex items-end justify-center overflow-hidden bg-[url('https://images.onlymyhealth.com/imported/images/2022/September/08_Sep_2022/nutritonal_month_main.jpg')] bg-cover bg-center"
       >
         <div className="relative z-10 max-w-5xl mx-auto w-full">
           <div className="flex flex-row items-center justify-center gap-3">
@@ -322,7 +317,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden relative animate-in fade-in zoom-in duration-300 my-auto">
             {/* Close Button */}
-            <button onClick={() => setShowPlanModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-white shadow-sm p-2 rounded-full z-20 transition-all">
+            <button aria-label="Close Plan Modal" onClick={() => setShowPlanModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-white shadow-sm p-2 rounded-full z-20 transition-all">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
 
@@ -425,7 +420,7 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold mb-1">वापरकर्ता मार्गदर्शिका (User Manual)</h3>
                 <p className="text-indigo-100 text-xs font-medium uppercase tracking-widest">पायरी {manualStep} पैकी {totalManualSteps}</p>
               </div>
-              <button onClick={closeManual} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors">
+              <button aria-label="Close Manual Modal" onClick={closeManual} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
@@ -602,6 +597,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative animate-in fade-in zoom-in duration-200">
             <button 
+              aria-label="Close Help Modal"
               onClick={() => setShowHelpModal(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors"
             >
@@ -653,14 +649,7 @@ export default function LandingPage() {
         <p className="font-medium tracking-wide flex flex-col md:flex-row items-center justify-center gap-2">
           <span>© 2026 PM-POSHAN Tracker -</span>
           <span 
-            className="font-black uppercase tracking-widest text-lg drop-shadow-lg" 
-            style={{ 
-              backgroundImage: 'linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #a855f7)', 
-              WebkitBackgroundClip: 'text', 
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              color: 'transparent'
-            }}
+            className="font-black uppercase tracking-widest text-lg drop-shadow-lg bg-[linear-gradient(to_right,#ef4444,#f97316,#eab308,#22c55e,#3b82f6,#a855f7)] bg-clip-text text-transparent"
           >
             Pratibha Info Solution
           </span>

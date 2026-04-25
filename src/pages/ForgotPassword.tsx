@@ -13,7 +13,7 @@ export default function ForgotPassword() {
   const [success, setSuccess] = useState('');
   const [countdown, setCountdown] = useState(0);
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
+  const API_URL = import.meta.env.VITE_API_URL || '/api';
 
   // Timer logic for resend OTP
   React.useEffect(() => {

@@ -12,6 +12,12 @@ SQLALCHEMY_DATABASE_URL = os.getenv(
     "postgresql://postgres:admin123@127.0.0.1:5434/postgres"
 )
 
+# Bulletproof fix: If we are running inside Docker and it tries to connect to 'db' on '5434',
+# force it to use the correct internal port '5432'.
+if "@db:5434" in SQLALCHEMY_DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("@db:5434", "@db:5432")
+
+
 # The 'engine' is the core of the connection
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 

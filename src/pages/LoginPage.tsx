@@ -135,7 +135,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <form onSubmit={handleAuth} className="space-y-5 relative z-10 w-full">
+              <form className="space-y-5 relative z-10 w-full">
                 {/* Email Input */}
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -173,7 +173,8 @@ export default function LoginPage() {
 
                 {/* Submit Button */}
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleAuth}
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-200 disabled:opacity-70 mt-4 flex justify-center items-center h-14"
                 >

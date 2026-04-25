@@ -83,7 +83,8 @@ app.include_router(payments.router)
 def login_for_access_token(response: Response, form_data: schemas.UserLogin, db: Session = Depends(get_db)):
     print(f"DEBUG: Login attempt for {form_data.email}")
     try:
-        user = db.query(models.Profile).filter(models.Profile.email == form_data.email).first()
+        clean_email = form_data.email.strip().lower()
+        user = db.query(models.Profile).filter(func.lower(func.trim(models.Profile.email)) == clean_email).first()
         if not user or not auth.verify_password(form_data.password.strip(), user.hashed_password):
             raise HTTPException(
                 status_code=401,
@@ -139,10 +140,12 @@ async def forgot_password(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    print(f"DEBUG: Received forgot-password request for {request.email}")
-    # 🔍 Case-insensitive search
-    user = db.query(models.Profile).filter(func.lower(models.Profile.email) == func.lower(request.email)).first()
+    clean_email = request.email.strip().lower()
+    print(f"DEBUG: Received forgot-password request for {clean_email}")
+    # 🔍 Case-insensitive search with trailing space fix
+    user = db.query(models.Profile).filter(func.lower(func.trim(models.Profile.email)) == clean_email).first()
     if not user:
+        print(f"DEBUG: Email {clean_email} NOT FOUND in local DB.")
         raise HTTPException(status_code=404, detail="Email not found")
     
     now = datetime.now(timezone.utc)
