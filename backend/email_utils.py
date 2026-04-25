@@ -7,7 +7,7 @@ from datetime import datetime
 def get_mail_config():
     # 🔍 Emergency Debug: Force load and print what we see
     load_dotenv("/app/.env")
-    print(f"DEBUG MAIL: USERNAME={os.getenv('MAIL_USERNAME')}, SERVER={os.getenv('MAIL_SERVER')}")
+    print(f"DEBUG MAIL: USERNAME={os.getenv('MAIL_USERNAME')}, SERVER={os.getenv('MAIL_SERVER')}", flush=True)
     
     return ConnectionConfig(
         MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
