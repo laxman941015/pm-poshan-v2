@@ -5,13 +5,9 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 def get_mail_config():
-    # 🔍 Emergency Debug: Force load and print what we see
-    load_dotenv("/app/.env")
-    print(f"DEBUG MAIL: USERNAME={os.getenv('MAIL_USERNAME')}, SERVER={os.getenv('MAIL_SERVER')}", flush=True)
-    
     return ConnectionConfig(
         MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
-        MAIL_PASSWORD = os.getenv("MAIL_PASSWORD").replace(" ", "") if os.getenv("MAIL_PASSWORD") else None,
+        MAIL_PASSWORD = os.getenv("MAIL_PASSWORD"),
         MAIL_FROM = os.getenv("MAIL_FROM"),
         MAIL_PORT = int(os.getenv("MAIL_PORT", 587)),
         MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
@@ -19,15 +15,11 @@ def get_mail_config():
         MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "False").lower() == "true",
         USE_CREDENTIALS = True,
         VALIDATE_CERTS = True,
-        MAIL_FROM_NAME = "PM-POSHAN Tracker"
+        MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "PM-POSHAN Tracker")
     )
 
 async def send_reset_password_email(email: EmailStr, otp: str):
     conf = get_mail_config()
-    log_file = "email_debug.log"
-    
-    with open(log_file, "a") as f:
-        f.write(f"[{datetime.now()}] Attempting to send OTP to {email}...\n")
     
     html = f"""
     <html>
@@ -59,9 +51,6 @@ async def send_reset_password_email(email: EmailStr, otp: str):
     try:
         fm = FastMail(conf)
         await fm.send_message(message)
-        with open(log_file, "a") as f:
-            f.write(f"[{datetime.now()}] ✅ OTP sent successfully to {email}\n")
     except Exception as e:
-        with open(log_file, "a") as f:
-            f.write(f"[{datetime.now()}] ❌ Failed to send OTP to {email}: {str(e)}\n")
         print(f"ERROR sending email: {e}")
+        raise e
