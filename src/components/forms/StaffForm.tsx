@@ -152,11 +152,11 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
     if (!confirmClear) return;
     setClearing(true);
     try {
-      const response = await fetch(`${api.baseUrl}/clear-staff-data?teacher_id=${userId}`, { method: 'DELETE' });
+      const response = await fetch(`${api.baseUrl}/clear-staff-data?teacher_id=${userId}&standard_group=${selectedScope}`, { method: 'DELETE' });
       if (response.ok) {
         fetchData();
         setConfirmClear(false);
-        alert('सर्व माहिती यशस्वीरीत्या हटवण्यात आली आहे.');
+        alert(`${selectedScope === 'primary' ? 'इयत्ता १-५ ची' : 'इयत्ता ६-८ ची'} सर्व माहिती यशस्वीरीत्या हटवण्यात आली आहे.`);
       }
     } catch (err) {
       console.error(err);
@@ -197,15 +197,15 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
             </form>
             <div className="space-y-2 border-t pt-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">नोंदणी केलेली यादी (Entries: {staffList.length})</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">नोंदणी केलेली यादी ({selectedScope === 'primary' ? '1-5th' : '6-8th'})</span>
               </div>
-              {staffList.length === 0 ? (
-                <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border border-dashed rounded">No entries found</div>
-              ) : staffList.map(item => (
+              {staffList.filter(s => s.standard_group === selectedScope).length === 0 ? (
+                <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border border-dashed rounded">No entries found for {selectedScope === 'primary' ? 'Primary' : 'Upper Primary'}</div>
+              ) : staffList.filter(s => s.standard_group === selectedScope).map(item => (
                 <div key={item.id} className="group flex justify-between items-center p-3 bg-white hover:bg-slate-50 border border-slate-100 rounded-lg transition-all shadow-sm">
                   <div className="flex flex-col">
                     <div className="text-[13px] font-black text-[#474379]">{item.staff_name}</div>
-                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.post_name} • {item.standard_group === 'primary' ? 'Primary' : 'Upper'}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.post_name}</div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
@@ -261,11 +261,11 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
             </form>
             <div className="space-y-2 border-t pt-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">खर्च यादी (Logistics Log: {fuelList.length})</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">खर्च यादी ({selectedScope === 'primary' ? '1-5th' : '6-8th'})</span>
               </div>
-              {fuelList.length === 0 ? (
-                <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border border-dashed rounded">No logistics logs</div>
-              ) : fuelList.map(item => (
+              {fuelList.filter(f => f.standard_group === selectedScope).length === 0 ? (
+                <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border border-dashed rounded">No logistics logs for {selectedScope === 'primary' ? 'Primary' : 'Upper Primary'}</div>
+              ) : fuelList.filter(f => f.standard_group === selectedScope).map(item => (
                 <div key={item.id} className="group flex justify-between items-center p-3 bg-white hover:bg-slate-50 border border-slate-100 rounded-lg transition-all shadow-sm">
                   <div className="flex flex-col">
                     <div className="text-[13px] font-black text-[#474379]">{item.fuel_type}</div>
@@ -304,7 +304,7 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
               <Trash2 size={24} /> Danger Zone (धोकादायक क्षेत्र)
             </h3>
             <p className="text-[11px] font-bold text-red-600/70 uppercase leading-relaxed max-w-xl">
-              खालील बटण दाबल्यास तुमचे सर्व स्वयंपाकी आणि इंधनाची माहिती कायमस्वरूपी हटवली जाईल. ही कृती परत घेता येणार नाही. कृपया विचारपूर्वक निर्णय घ्या.
+              खालील बटण दाबल्यास तुमचे {selectedScope === 'primary' ? 'इयत्ता १-५ (Primary)' : 'इयत्ता ६-८ (Upper Primary)'} चे सर्व स्वयंपाकी आणि इंधनाची माहिती कायमस्वरूपी हटवली जाईल. ही कृती परत घेता येणार नाही. कृपया विचारपूर्वक निर्णय घ्या.
             </p>
           </div>
           <div className="flex flex-col items-center gap-4 bg-white/50 p-6 rounded-3xl border border-red-100 backdrop-blur-sm">

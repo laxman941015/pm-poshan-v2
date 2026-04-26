@@ -1039,11 +1039,18 @@ async def clear_weekly_schedule(
         raise HTTPException(status_code=400, detail=f"Clear failed: {str(e)}")
 
 @app.delete("/clear-staff-data")
-async def clear_staff_data(teacher_id: str = Query(...), db: Session = Depends(get_db)):
-    db.query(models.CookingStaff).filter(models.CookingStaff.teacher_id == teacher_id).delete()
-    db.query(models.FuelTracking).filter(models.FuelTracking.teacher_id == teacher_id).delete()
+async def clear_staff_data(teacher_id: str = Query(...), standard_group: str = Query(None), db: Session = Depends(get_db)):
+    query_staff = db.query(models.CookingStaff).filter(models.CookingStaff.teacher_id == teacher_id)
+    query_fuel = db.query(models.FuelTracking).filter(models.FuelTracking.teacher_id == teacher_id)
+    
+    if standard_group:
+        query_staff = query_staff.filter(models.CookingStaff.standard_group == standard_group)
+        query_fuel = query_fuel.filter(models.FuelTracking.standard_group == standard_group)
+        
+    query_staff.delete()
+    query_fuel.delete()
     db.commit()
-    return {"message": "Staff and Fuel records cleared"}
+    return {"message": f"Staff and Fuel records cleared for {standard_group or 'all'}"}
 
 @app.post("/import-global-schedule")
 async def import_global_schedule(
