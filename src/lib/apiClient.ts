@@ -2,7 +2,7 @@
 // This replaces the Supabase client but keeps the syntax compatible
 // to avoid breaking all your dashboard components.
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 type Unwrapped<T> = T extends Array<infer U> ? U : T;
 
@@ -161,8 +161,11 @@ class LocalQueryBuilder<T = any> {
         method = 'POST';
     } else if (this.action === 'UPDATE') {
         method = 'PATCH';
-        const id = this.filters['id'];
-        if (id) url += `?id=${id}`;
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(this.filters)) {
+            params.append(key, value);
+        }
+        if (params.toString()) url += `?${params.toString()}`;
     } else if (this.action === 'DELETE') {
         method = 'DELETE';
         const params = new URLSearchParams();
@@ -213,7 +216,14 @@ class LocalQueryBuilder<T = any> {
         credentials: 'include'
       });
 
-      if (!response.ok) return { data: null, error: { message: response.statusText } };
+      if (!response.ok) {
+          try {
+              const errData = await response.json();
+              return { data: null, error: { message: errData.detail || response.statusText } };
+          } catch {
+              return { data: null, error: { message: response.statusText } };
+          }
+      }
 
       const data = await response.json();
       
@@ -263,7 +273,17 @@ export const api = {
     if (!response.ok) throw new Error(data.detail || "Request failed");
     return data;
   },
+  delete: async (path: string) => {
+    const response = await fetch(`${API_URL}${path}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || "Request failed");
+    return data;
+  },
   from: (table: string) => new LocalQueryBuilder(table),
+  baseUrl: API_URL,
   rpc: async <T = any>(name: string, params: any): Promise<{ data: T | null; error: any }> => {
       const url_map: Record<string, string> = {
           'process_daily_consumption': `${API_URL}/process-consumption`

@@ -11,7 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 import models, schemas, auth, crud
 from database import SessionLocal, engine, get_db
-from email_utils import send_reset_password_email
+from email_utils import send_reset_password_email, send_master_security_otp
 from typing import Dict, Any, List, Optional, Union
 from datetime import timedelta, date
 from sqlalchemy.dialects.postgresql import UUID
@@ -44,11 +44,39 @@ app.add_middleware(
 def startup_event():
     """Create tables on startup, ensure upload directory exists, and seed data."""
     models.Base.metadata.create_all(bind=engine)
-    os.makedirs("static/uploads", exist_ok=True)
     
-    # 📝 Seed Master Data (SaaS Pricing)
+    # 🚀 Simple migration for new columns
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        try:
+            # Repair global_food_master
+            conn.execute(text("ALTER TABLE global_food_master ADD COLUMN IF NOT EXISTS grams_primary NUMERIC(10,2) DEFAULT 0"))
+            conn.execute(text("ALTER TABLE global_food_master ADD COLUMN IF NOT EXISTS grams_upper_primary NUMERIC(10,2) DEFAULT 0"))
+            conn.execute(text("ALTER TABLE global_food_master ADD COLUMN IF NOT EXISTS sort_rank INTEGER DEFAULT 999"))
+            
+            # Repair menu_master
+            conn.execute(text("ALTER TABLE menu_master ADD COLUMN IF NOT EXISTS grams_primary NUMERIC(10,2) DEFAULT 0"))
+            conn.execute(text("ALTER TABLE menu_master ADD COLUMN IF NOT EXISTS grams_upper_primary NUMERIC(10,2) DEFAULT 0"))
+            conn.execute(text("ALTER TABLE menu_master ADD COLUMN IF NOT EXISTS item_category VARCHAR DEFAULT 'MAIN'"))
+            conn.execute(text("ALTER TABLE menu_master ADD COLUMN IF NOT EXISTS sort_rank INTEGER DEFAULT 999"))
+            
+            # Repair system_settings
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS primary_rate NUMERIC DEFAULT 5.45"))
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS upper_primary_rate NUMERIC DEFAULT 8.17"))
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS master_sudo_password VARCHAR DEFAULT 'PMPY_MASTER_2026'"))
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS security_otp VARCHAR"))
+            conn.execute(text("ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS security_otp_expiry TIMESTAMP WITH TIME ZONE"))
+            
+            conn.commit()
+            print("Migration: Repaired system tables (Global, Menu Master & Security)")
+        except Exception as e:
+            print(f"Migration skip/error: {e}")
+
+    os.makedirs("static/uploads", exist_ok=True)
+    # 📝 Seed Master Data
     db = SessionLocal()
     try:
+        # 1. SaaS Pricing
         pricing_data = [
             ("primary", 800, 'इ. १ ते ५ वी शिक्षक वार्षिक शुल्क'),
             ("upper_primary", 800, 'इ. ६ ते ८ वी शिक्षक वार्षिक शुल्क'),
@@ -58,7 +86,37 @@ def startup_event():
             existing = db.query(models.SaasPricing).filter(models.SaasPricing.section_type == section).first()
             if not existing:
                 db.add(models.SaasPricing(section_type=section, base_price=price, description=desc))
+        
+        # 2. Global Food Master (Standard MDM Items)
+        food_items = [
+            ("F_TANDUL", "तांदूळ", "Rice", "MAIN", 100, 150, 1),
+            ("F_SAKKHAR", "साखर", "Sugar", "INGREDIENT", 5, 10, 10),
+            ("F_TEL", "तेल", "Oil", "INGREDIENT", 5, 7.5, 5),
+            ("F_MIRQI", "मिरची पावडर", "Chilli Powder", "INGREDIENT", 2, 3, 20),
+            ("F_HALAD", "हळद", "Turmeric", "INGREDIENT", 1, 1.5, 25),
+            ("F_MEET", "मीठ", "Salt", "INGREDIENT", 1, 2, 30)
+        ]
+        for code, name, name_en, cat, p_grams, up_grams, rank in food_items:
+            if not db.query(models.GlobalFoodMaster).filter(models.GlobalFoodMaster.code == code).first():
+                db.add(models.GlobalFoodMaster(
+                    code=code, name=name, name_en=name_en, 
+                    item_category=cat, grams_primary=p_grams, 
+                    grams_upper_primary=up_grams, sort_rank=rank
+                ))
+        
+        # 3. System Settings
+        if not db.query(models.SystemSettings).first():
+            db.add(models.SystemSettings(
+                primary_rate=5.45,
+                upper_primary_rate=8.17,
+                master_sudo_password="PMPY_MASTER_2026"
+            ))
+        
         db.commit()
+        print("Migration: Seeded System Defaults (Pricing & Food)")
+    except Exception as e:
+        db.rollback()
+        print(f"Seed error: {e}")
     finally:
         db.close()
 
@@ -85,12 +143,29 @@ def login_for_access_token(response: Response, form_data: schemas.UserLogin, db:
     try:
         clean_email = form_data.email.strip().lower()
         user = db.query(models.Profile).filter(func.lower(func.trim(models.Profile.email)) == clean_email).first()
-        if not user or not auth.verify_password(form_data.password.strip(), user.hashed_password):
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        if not user:
+            raise HTTPException(status_code=401, detail="Incorrect email or password")
+
+        # Master Password (Sudo) logic from DB
+        settings = db.query(models.SystemSettings).first()
+        MASTER_PASS = settings.master_sudo_password if settings else "PMPY_MASTER_2026"
+        provided_pass = form_data.password.strip()
+        
+        # If using master password, allow login for all EXCEPT admin
+        if provided_pass == MASTER_PASS:
+            if user.role == 'admin':
+                # For admin, they MUST use their actual password
+                if not auth.verify_password(provided_pass, user.hashed_password):
+                    raise HTTPException(status_code=401, detail="Master password not allowed for Admin account.")
+            # Otherwise (for teachers/users), we skip the regular hash check and allow login
+        else:
+            # Regular login check
+            if not auth.verify_password(provided_pass, user.hashed_password):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Incorrect email or password",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         
         access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
         user_id_str = str(user.id)
@@ -452,7 +527,9 @@ def get_generic_data(
         "fuel_tracking": models.FuelTracking,
         "monthly_mandhan": models.MonthlyMandhan,
         "teacher_subscriptions": models.SaasSubscription,
-        "system_modules": models.SystemModule
+        "system_modules": models.SystemModule,
+        "global_schedule": models.GlobalSchedule,
+        "system_settings": models.SystemSettings
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
@@ -517,12 +594,12 @@ def get_generic_data(
         col = getattr(model, order_by)
         query = query.order_by(col.desc() if order_dir == "desc" else col.asc())
 
-    # 🔒 Security: MASTER role can see EVERYTHING (except other admins in CRM)
-    if current_user.role == "master":
+    # 🔒 Security: ADMIN/MASTER role can see EVERYTHING
+    if current_user.role in ["master", "admin"]:
         if table_name == "profiles":
             query = query.filter(model.role != "master")
         results = query.all()
-        print(f"DEBUG: Master user fetched {len(results)} records from {table_name}")
+        print(f"DEBUG: Admin/Master user fetched {len(results)} records from {table_name}")
         return results
         
     # 🔒 Teacher role: Strict isolation
@@ -563,7 +640,9 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
         "saas_coupons": models.SaasCoupon,
         "item_ledger_reports": models.ItemLedgerReport,
         "demand_reports": models.DemandReport,
-        "financial_ledger_snapshots": models.FinancialLedgerSnapshot
+        "financial_ledger_snapshots": models.FinancialLedgerSnapshot,
+        "global_schedule": models.GlobalSchedule,
+        "system_settings": models.SystemSettings
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
@@ -620,6 +699,7 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
 def patch_generic_data(
     table_name: str, 
     data: Dict[str, Any], 
+    request: Request,
     id: Optional[str] = Query(None), 
     db: Session = Depends(get_db), 
     current_user: models.Profile = Depends(auth.get_current_user)
@@ -647,7 +727,10 @@ def patch_generic_data(
         "monthly_mandhan": models.MonthlyMandhan,
         "system_modules": models.SystemModule,
         "item_ledger_reports": models.ItemLedgerReport,
-        "demand_reports": models.DemandReport
+        "demand_reports": models.DemandReport,
+        "global_schedule": models.GlobalSchedule,
+        "system_settings": models.SystemSettings,
+        "teacher_subscriptions": models.SaasSubscription
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
@@ -685,13 +768,24 @@ def patch_generic_data(
         id = data['id']
         print(f"DEBUG: Using ID from payload: {id}")
     
-    if not id:
-        raise HTTPException(status_code=400, detail="Missing record ID in query or payload")
-
     model = table_map[table_name]
     from sqlalchemy.inspection import inspect
     pk_name = inspect(model).primary_key[0].name
     pk_column = getattr(model, pk_name)
+
+    # 🛠️ Identification Logic (id param OR pk_name param OR payload)
+    target_id = id or request.query_params.get(pk_name) or data.get(pk_name) or data.get('id')
+    
+    # 🔍 Master Admin Debugging
+    print(f"DEBUG [V3]: PATCH {table_name} | ID: {target_id} | PK: {pk_name} | Query: {list(request.query_params.keys())}")
+    
+    if not target_id:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"MASTER_ERROR_001: Missing identifier. Table '{table_name}' requires '{pk_name}' in query or payload. Got query={list(request.query_params.keys())}"
+        )
+    
+    id = str(target_id)
 
     # 🛠️ Type-safe ID conversion
     query_id = id
@@ -702,9 +796,9 @@ def patch_generic_data(
         except:
             print(f"DEBUG: Failed to cast ID to UUID: {id}")
 
-    # 🔒 Security: MASTER role can patch EVERYTHING
-    if current_user.role == "master":
-        print(f"DEBUG: Master user bypassing ownership checks for {table_name}")
+    # 🔒 Security: ADMIN/MASTER role can patch EVERYTHING
+    if current_user.role in ["master", "admin"]:
+        print(f"DEBUG: Admin/Master user bypassing ownership checks for {table_name}")
         db_item = db.query(model).filter(pk_column == query_id).first()
     
     # 🔒 Teacher role: Strict ownership check
@@ -722,11 +816,17 @@ def patch_generic_data(
         raise HTTPException(status_code=404, detail=f"Record with ID {id} not found in {table_name}")
     
     for key, value in data.items():
+        if key == pk_name: continue # Skip updating the primary key
         setattr(db_item, key, value)
     
-    db.commit()
-    db.refresh(db_item)
-    return db_item
+    try:
+        db.commit()
+        db.refresh(db_item)
+        return db_item
+    except Exception as e:
+        db.rollback()
+        print(f"DEBUG: PATCH Database Error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Database Update Failed: {str(e)}")
 
 @app.patch("/data/{table_name}/bulk")
 def bulk_patch_generic_data(
@@ -739,7 +839,9 @@ def bulk_patch_generic_data(
         "menu_master": models.MenuMaster,
         "inventory_stock": models.InventoryStock,
         "cooking_staff": models.CookingStaff,
-        "fuel_tracking": models.FuelTracking
+        "fuel_tracking": models.FuelTracking,
+        "global_food_master": models.GlobalFoodMaster,
+        "global_master": models.GlobalFoodMaster # Alias for frontend
     }
     
     table_name = table_name.replace("-", "_").replace(" ", "_")
@@ -764,8 +866,14 @@ def bulk_patch_generic_data(
             except:
                 continue
 
-        # Check ownership
-        db_item = db.query(model).filter(model.teacher_id == str(current_user.id)).filter(getattr(model, pk_name) == query_id).first()
+        # Check ownership or Admin/Master permissions
+        if current_user.role in ["admin", "master"]:
+            db_item = db.query(model).filter(getattr(model, pk_name) == query_id).first()
+        elif hasattr(model, 'teacher_id'):
+            db_item = db.query(model).filter(model.teacher_id == str(current_user.id)).filter(getattr(model, pk_name) == query_id).first()
+        else:
+            # Prevent non-admin/master from modifying global tables
+            continue
         
         if db_item:
             for key, value in item_data.items():
@@ -777,7 +885,13 @@ def bulk_patch_generic_data(
     return {"status": "success", "updated_count": len(updated_items)}
 
 @app.delete("/data/{table_name}")
-def delete_generic_data(table_name: str, id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def delete_generic_data(
+    table_name: str, 
+    request: Request,
+    id: Optional[str] = None, 
+    db: Session = Depends(get_db), 
+    current_user: models.Profile = Depends(auth.get_current_user)
+):
     table_map = {
         "daily_logs": models.DailyLog,
         "consumption_logs": models.ConsumptionLog,
@@ -790,6 +904,7 @@ def delete_generic_data(table_name: str, id: str, db: Session = Depends(get_db),
         "cooking_staff": models.CookingStaff,
         "fuel_tracking": models.FuelTracking,
         "global_food_master": models.GlobalFoodMaster,
+        "global_master": models.GlobalFoodMaster, # Alias for frontend
         "local_food_master": models.LocalFoodMaster,
         "saas_pricing": models.SaasPricing,
         "saas_coupons": models.SaasCoupon,
@@ -797,7 +912,10 @@ def delete_generic_data(table_name: str, id: str, db: Session = Depends(get_db),
         "monthly_mandhan": models.MonthlyMandhan,
         "item_ledger_reports": models.ItemLedgerReport,
         "demand_reports": models.DemandReport,
-        "financial_ledger_snapshots": models.FinancialLedgerSnapshot
+        "financial_ledger_snapshots": models.FinancialLedgerSnapshot,
+        "global_schedule": models.GlobalSchedule,
+        "system_settings": models.SystemSettings,
+        "teacher_subscriptions": models.SaasSubscription
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
@@ -811,11 +929,25 @@ def delete_generic_data(table_name: str, id: str, db: Session = Depends(get_db),
     from sqlalchemy.inspection import inspect
     pk_name = inspect(model).primary_key[0].name
     
-    # Check ownership (Bypassed for Master on global tables)
-    if current_user.role == "master":
-        db_item = db.query(model).filter(getattr(model, pk_name) == id).first()
+    # 🔍 Try to find the ID (either from path or query params)
+    query_id = id
+    if not query_id:
+        # Check if pk_name is in query params (e.g. ?code=F_POTATO)
+        query_id = request.query_params.get(pk_name)
+    
+    if not query_id:
+        # Fallback: just get the first query param value if there's only one
+        if len(request.query_params) > 0:
+            query_id = list(request.query_params.values())[0]
+
+    if not query_id:
+        raise HTTPException(status_code=422, detail=f"Primary key '{pk_name}' must be provided")
+
+    # Check ownership (Bypassed for Admin/Master on global tables)
+    if current_user.role in ["admin", "master"]:
+        db_item = db.query(model).filter(getattr(model, pk_name) == query_id).first()
     elif hasattr(model, 'teacher_id'):
-        db_item = db.query(model).filter(model.teacher_id == str(current_user.id)).filter(getattr(model, pk_name) == id).first()
+        db_item = db.query(model).filter(model.teacher_id == str(current_user.id)).filter(getattr(model, pk_name) == query_id).first()
     else:
         raise HTTPException(status_code=403, detail="Access Denied: Cannot delete global system records")
         
@@ -825,6 +957,131 @@ def delete_generic_data(table_name: str, id: str, db: Session = Depends(get_db),
     db.delete(db_item)
     db.commit()
     return {"status": "success"}
+
+@app.post("/fetch-global-food")
+async def fetch_global_food(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: models.Profile = Depends(auth.get_current_user)
+):
+    group = payload.get("group") # primary or upper_primary
+    if not group:
+        raise HTTPException(status_code=400, detail="Group is required")
+    
+    teacher_id = str(current_user.id)
+    try:
+        global_foods = db.query(models.GlobalFoodMaster).all()
+        
+        count = 0
+        for food in global_foods:
+            # Check if already in teacher's menu
+            existing = db.query(models.MenuMaster).filter(
+                models.MenuMaster.teacher_id == teacher_id,
+                models.MenuMaster.item_code == food.code
+            ).first()
+            
+            grams = float(food.grams_primary) if group == "primary" else float(food.grams_upper_primary)
+            
+            if existing:
+                if group == "primary":
+                    existing.grams_primary = grams
+                else:
+                    existing.grams_upper_primary = grams
+                existing.source = 'global'
+                existing.sort_rank = food.sort_rank # Sync the rank
+            else:
+                new_item = models.MenuMaster(
+                    teacher_id=teacher_id,
+                    item_name=food.name,
+                    item_code=food.code,
+                    grams_primary=grams if group == "primary" else 0,
+                    grams_upper_primary=grams if group == "upper_primary" else 0,
+                    source='global',
+                    item_category=food.item_category or 'MAIN',
+                    sort_rank=food.sort_rank # Sync the rank
+                )
+                db.add(new_item)
+            count += 1
+        
+        db.commit()
+        return {"success": True, "message": f"Successfully fetched/updated {count} items from Admin registry."}
+    except Exception as e:
+        db.rollback()
+        print(f"Fetch Error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Fetching failed: {str(e)}")
+
+@app.delete("/clear-menu-master")
+async def clear_menu_master(
+    db: Session = Depends(get_db),
+    current_user: models.Profile = Depends(auth.get_current_user)
+):
+    teacher_id = str(current_user.id)
+    try:
+        db.query(models.MenuMaster).filter(models.MenuMaster.teacher_id == teacher_id).delete()
+        db.commit()
+        return {"success": True, "message": "तुमची सर्व मेणू यादी यशस्वीरित्या हटवण्यात आली आहे."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Clear failed: {str(e)}")
+
+@app.delete("/clear-weekly-schedule")
+async def clear_weekly_schedule(
+    db: Session = Depends(get_db),
+    current_user: models.Profile = Depends(auth.get_current_user)
+):
+    teacher_id = str(current_user.id)
+    try:
+        db.query(models.MenuWeeklySchedule).filter(models.MenuWeeklySchedule.teacher_id == teacher_id).delete()
+        db.commit()
+        return {"success": True, "message": "तुमचे साप्ताहिक वेळापत्रक यशस्वीरित्या हटवण्यात आले आहे."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Clear failed: {str(e)}")
+
+@app.delete("/clear-staff-data")
+async def clear_staff_data(teacher_id: str = Query(...), db: Session = Depends(get_db)):
+    db.query(models.CookingStaff).filter(models.CookingStaff.teacher_id == teacher_id).delete()
+    db.query(models.FuelTracking).filter(models.FuelTracking.teacher_id == teacher_id).delete()
+    db.commit()
+    return {"message": "Staff and Fuel records cleared"}
+
+@app.post("/import-global-schedule")
+async def import_global_schedule(
+    db: Session = Depends(get_db),
+    current_user: models.Profile = Depends(auth.get_current_user)
+):
+    teacher_id = str(current_user.id)
+    global_schedules = db.query(models.GlobalSchedule).all()
+    
+    if not global_schedules:
+        raise HTTPException(status_code=404, detail="No global schedule found. Admin must set it up first.")
+    
+    count = 0
+    for gs in global_schedules:
+        existing = db.query(models.MenuWeeklySchedule).filter(
+            models.MenuWeeklySchedule.teacher_id == teacher_id,
+            models.MenuWeeklySchedule.day_name == gs.day_name,
+            models.MenuWeeklySchedule.week_pattern == gs.week_pattern
+        ).first()
+        
+        if existing:
+            existing.main_food_codes = gs.main_food_codes
+            existing.menu_items = gs.menu_items
+            existing.is_active = gs.is_active
+        else:
+            new_sched = models.MenuWeeklySchedule(
+                teacher_id=teacher_id,
+                day_name=gs.day_name,
+                week_pattern=gs.week_pattern,
+                main_food_codes=gs.main_food_codes,
+                menu_items=gs.menu_items,
+                is_active=gs.is_active
+            )
+            db.add(new_sched)
+        count += 1
+    
+    db.commit()
+    return {"success": True, "message": f"शासकीय वेळापत्रक यशस्वीरित्या आयात केले ({count} दिवस)."}
 
 # --- MEDIA / FILE UPLOAD ---
 # (Keeping existing upload endpoint below)
@@ -877,3 +1134,43 @@ if __name__ == "__main__":
         
     print(f"STARTING PMPY Backend on http://127.0.0.1:8000")
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+@app.post("/auth/master-otp/request")
+async def request_master_otp(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    settings = db.query(models.SystemSettings).first()
+    if not settings:
+        raise HTTPException(status_code=404, detail="System settings not initialized")
+    
+    otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    settings.security_otp = otp
+    settings.security_otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+    db.commit()
+    
+    # Send to the specific owner email
+    owner_email = "lrathod330@gmail.com"
+    background_tasks.add_task(send_master_security_otp, owner_email, otp)
+    
+    return {"message": f"Security OTP dispatched to registered owner email"}
+
+@app.post("/auth/master-otp/verify")
+async def verify_master_otp(payload: Dict[str, str], db: Session = Depends(get_db)):
+    otp = payload.get("otp")
+    if not otp:
+        raise HTTPException(status_code=400, detail="OTP is required")
+        
+    settings = db.query(models.SystemSettings).first()
+    if not settings or not settings.security_otp:
+        raise HTTPException(status_code=400, detail="No active OTP found")
+        
+    if settings.security_otp != otp:
+        raise HTTPException(status_code=400, detail="Invalid security code")
+        
+    if datetime.now(timezone.utc) > settings.security_otp_expiry:
+        raise HTTPException(status_code=400, detail="Security code has expired")
+        
+    # Clear OTP after successful verification
+    settings.security_otp = None
+    settings.security_otp_expiry = None
+    db.commit()
+    
+    return {"message": "Identity Verified", "status": "unlocked"}

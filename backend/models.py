@@ -123,6 +123,9 @@ class GlobalFoodMaster(Base):
     name = Column(String, nullable=False)
     name_en = Column(String)
     item_category = Column(String)
+    grams_primary = Column(Numeric, default=0)
+    grams_upper_primary = Column(Numeric, default=0)
+    sort_rank = Column(Integer, default=999)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class LocalFoodMaster(Base):
@@ -139,6 +142,16 @@ class MenuWeeklySchedule(Base):
     __tablename__ = "menu_weekly_schedule"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     teacher_id = Column(String, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
+    day_name = Column(String, nullable=False)
+    week_pattern = Column(String, nullable=False)
+    main_food_codes = Column(JSONB)
+    menu_items = Column(JSONB)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class GlobalSchedule(Base):
+    __tablename__ = "global_schedule"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     day_name = Column(String, nullable=False)
     week_pattern = Column(String, nullable=False)
     main_food_codes = Column(JSONB)
@@ -294,3 +307,13 @@ class DemandReport(Base):
     standard_group = Column(String)
     report_data = Column(JSONB)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    primary_rate = Column(Numeric, default=5.45)
+    upper_primary_rate = Column(Numeric, default=8.17)
+    master_sudo_password = Column(String, default="PMPY_MASTER_2026")
+    security_otp = Column(String, nullable=True)
+    security_otp_expiry = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

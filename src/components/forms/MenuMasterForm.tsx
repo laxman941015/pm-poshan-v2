@@ -34,6 +34,7 @@ export default function MenuMasterForm({ userId, onSuccess }: MenuMasterFormProp
   const [fetchLoading, setFetchLoading] = useState(true);
   const [saveRanksLoading, setSaveRanksLoading] = useState(false);
   const [saveRanksSuccess, setSaveRanksSuccess] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const [selectedCode, setSelectedCode] = useState('');
   const [gramsPrimary, setGramsPrimary] = useState<number | ''>('');
@@ -174,6 +175,44 @@ export default function MenuMasterForm({ userId, onSuccess }: MenuMasterFormProp
     setMessage({ type: '', text: '' });
   };
 
+
+  const handleClearAll = async () => {
+    const msg = "इशारा (WARNING): तुम्ही खात्री बाळगता? यामुळे तुमचे सर्व मेणू आयटम्स आणि त्यांचे प्रमाण कायमचे हटवले जाईल. याचा परिणाम तुमच्या जुन्या अहवालांवर (Reports) होऊ शकतो. तुम्ही पुढे जाऊ इच्छिता?";
+    if (!window.confirm(msg)) return;
+    setLoading(true);
+    try {
+      const response = await (api as any).delete('/clear-menu-master');
+      if (response && response.success) {
+        setMessage({ type: 'success', text: response.message });
+        fetchMenu();
+      } else {
+        throw new Error(response?.detail || 'Clear failed');
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'हटवणे अयशस्वी: ' + err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFromAdmin = async (group: 'primary' | 'upper_primary') => {
+    if (!window.confirm(`शासकीय नोंदणीतून ${group === 'primary' ? '१-५ वी' : '६-८ वी'} चे प्रमाण आयात करायचे आहे का? (तुमचे जुने बदल पुसले जाऊ शकतात)`)) return;
+    
+    setLoading(true);
+    try {
+      const response = await api.post('/fetch-global-food', { group });
+      if (response && response.success) {
+        setMessage({ type: 'success', text: response.message });
+        fetchMenu();
+      } else {
+        throw new Error(response?.detail || 'Fetching failed');
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'आयात करणे अयशस्वी: ' + err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,7 +357,32 @@ export default function MenuMasterForm({ userId, onSuccess }: MenuMasterFormProp
       )}
 
       <div className="bg-white border border-slate-200 shadow-sm p-5">
-        <h3 className="text-sm font-black text-[#474379] mb-4 border-b pb-2 uppercase tracking-wider">दैनिक मेनूमध्ये आयटम जोडा</h3>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b pb-4">
+          <h3 className="text-sm font-black text-[#474379] uppercase tracking-wider">दैनिक मेनूमध्ये आयटम जोडा</h3>
+          
+          <div className="flex flex-wrap gap-2">
+            {hasPrimary && (
+              <button 
+                type="button" 
+                onClick={() => fetchFromAdmin('primary')}
+                disabled={loading}
+                className="bg-indigo-600 text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-md active:scale-95"
+              >
+                {loading ? <Loader2 className="animate-spin" size={12} /> : '📥'} Fetch 1-5th Stds
+              </button>
+            )}
+            {hasUpperPrimary && (
+              <button 
+                type="button" 
+                onClick={() => fetchFromAdmin('upper_primary')}
+                disabled={loading}
+                className="bg-slate-800 text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-md active:scale-95"
+              >
+                {loading ? <Loader2 className="animate-spin" size={12} /> : '📥'} Fetch 6-8th Stds
+              </button>
+            )}
+          </div>
+        </div>
         
         {/* Informational Banner */}
         <div className="bg-blue-50/50 border border-blue-200/50 p-6 mb-6 rounded-xl relative overflow-hidden group">
@@ -480,6 +544,37 @@ export default function MenuMasterForm({ userId, onSuccess }: MenuMasterFormProp
           </div>
         </div>
       )}
+      {/* ⚠️ DANGER ZONE */}
+      <div className="mt-12 mb-10 p-6 bg-red-50 border-2 border-red-100 rounded-2xl">
+        <h4 className="text-red-700 font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+          <Trash2 size={16} /> Danger Zone (धोकादायक क्षेत्र)
+        </h4>
+        <p className="text-[12px] font-bold text-red-600 mb-4 leading-relaxed">
+          इशारा: ही क्रिया केल्यास तुमचे सर्व मेणू आयटम्स आणि त्यांचे जतन केलेले प्रमाण कायमचे हटवले जाईल. 
+          याचा परिणाम तुमच्या मागील अहवालांवर (Reports) आणि स्टॉक रजिस्टरवर होऊ शकतो. 
+          कृपया खात्री असल्यासच पुढे जा.
+        </p>
+        
+        <label className="flex items-start gap-3 cursor-pointer group mb-4">
+          <input 
+            type="checkbox" 
+            checked={confirmClear}
+            onChange={(e) => setConfirmClear(e.target.checked)}
+            className="mt-1 w-4 h-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+          />
+          <span className="text-[11px] font-black text-red-900 uppercase tracking-tight group-hover:text-red-700 transition-colors">
+            मला समजले आहे की ही क्रिया कायमस्वरूपी आहे आणि यामुळे माझे रेकॉर्ड्स हटवले जातील.
+          </span>
+        </label>
+
+        <button
+          onClick={handleClearAll}
+          disabled={loading || !confirmClear}
+          className="flex items-center gap-2 px-6 py-3 font-black text-xs uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition-all shadow-lg disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Trash2 size={16} /> 🗑️ माझे सर्व आयटम हटवा (CLEAR ALL MY ITEMS)
+        </button>
+      </div>
     </div>
   );
 }

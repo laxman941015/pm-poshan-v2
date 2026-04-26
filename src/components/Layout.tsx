@@ -6,11 +6,10 @@ import SubscriptionGate from './auth/SubscriptionGate';
 
 interface LayoutProps {
   children: React.ReactNode;
-  hideFooter?: boolean;
   sidebarLinks?: React.ReactNode;
 }
 
-export default function Layout({ children, hideFooter, sidebarLinks }: LayoutProps) {
+export default function Layout({ children, sidebarLinks }: LayoutProps) {
   const { session, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -398,18 +397,9 @@ export default function Layout({ children, hideFooter, sidebarLinks }: LayoutPro
             <SubscriptionGate>
               {children}
             </SubscriptionGate>
-            {!hideFooter && (
-              <footer className="mt-auto py-3 text-center text-[10px] text-slate-500 border-t border-slate-100 print:hidden">
-                © {new Date().getFullYear()} PM-POSHAN Tracker - Independent Standalone Project.
-              </footer>
-            )}
           </div>
         </main>
-
       </div>
-
-
-      
     </div>
   );
 }

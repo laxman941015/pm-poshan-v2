@@ -5,7 +5,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Loader2,
-  CalendarCheck
+  CalendarCheck,
+  Trash2
 } from 'lucide-react';
 
 const DAYS = [
@@ -40,6 +41,7 @@ interface ScheduleFormProps {
 
 export default function ScheduleForm({ userId, onSuccess }: ScheduleFormProps) {
   const [loading, setLoading] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -121,6 +123,43 @@ export default function ScheduleForm({ userId, onSuccess }: ScheduleFormProps) {
     }));
   };
 
+  const handleClearAll = async () => {
+    const msg = "इशारा (WARNING): तुम्ही खात्री बाळगता? यामुळे तुमचे पूर्ण साप्ताहिक वेळापत्रक हटवले जाईल. याचा परिणाम तुमच्या दैनंदिन आहार नोंदींवर होऊ शकतो. तुम्ही पुढे जाऊ इच्छिता?";
+    if (!window.confirm(msg)) return;
+    setLoading(true);
+    try {
+      const response = await (api as any).delete('/clear-weekly-schedule');
+      if (response && response.success) {
+        setMessage({ type: 'success', text: response.message });
+        initData();
+      } else {
+        throw new Error(response?.detail || 'Clear failed');
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'हटवणे अयशस्वी: ' + err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const importGlobalSchedule = async () => {
+    if (!window.confirm('शासकीय वेळापत्रक आयात करायचे आहे का? (तुमचे जुने वेळापत्रक पुसले जाऊ शकते)')) return;
+    setLoading(true);
+    try {
+      const response = await api.post('/import-global-schedule', {});
+      if (response && response.success) {
+        setMessage({ type: 'success', text: response.message });
+        initData();
+      } else {
+        throw new Error(response?.detail || 'Import failed');
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'आयात करणे अयशस्वी: ' + err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveSchedule = async () => {
     setLoading(true);
     setMessage({ type: '', text: '' });
@@ -194,8 +233,21 @@ export default function ScheduleForm({ userId, onSuccess }: ScheduleFormProps) {
         </div>
       )}
 
-      <div className="flex justify-end pr-4">
-        <button onClick={saveSchedule} disabled={loading} className="bg-[#3c8dbc] hover:bg-[#2e7da6] text-white px-8 py-3 font-black text-xs uppercase tracking-widest flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-4">
+        <button 
+          onClick={importGlobalSchedule} 
+          disabled={loading} 
+          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+        >
+          {loading ? <Loader2 className="animate-spin" size={16} /> : <CalendarCheck size={16} />}
+          Import Standard Schedule
+        </button>
+
+        <button 
+          onClick={saveSchedule} 
+          disabled={loading} 
+          className="w-full sm:w-auto bg-[#3c8dbc] hover:bg-[#2e7da6] text-white px-8 py-3 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+        >
           {loading ? <Loader2 className="animate-spin" size={16} /> : <CalendarCheck size={16} />}
           वेळापत्रक जतन करा
         </button>
@@ -204,6 +256,37 @@ export default function ScheduleForm({ userId, onSuccess }: ScheduleFormProps) {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-10">
         {renderScheduleBlock('WEEK_1_3_5')}
         {renderScheduleBlock('WEEK_2_4')}
+      </div>
+      {/* ⚠️ DANGER ZONE */}
+      <div className="mt-12 mb-10 p-6 bg-red-50 border-2 border-red-100 rounded-2xl">
+        <h4 className="text-red-700 font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+          <Trash2 size={16} /> Danger Zone (धोकादायक क्षेत्र)
+        </h4>
+        <p className="text-[12px] font-bold text-red-600 mb-4 leading-relaxed">
+          इशारा: ही क्रिया केल्यास तुमचे पूर्ण साप्ताहिक वेळापत्रक हटवले जाईल. 
+          याचा परिणाम तुमच्या दैनंदिन आहार नोंदींवर आणि रिपोर्टिंगवर होऊ शकतो. 
+          कृपया खात्री असल्यासच पुढे जा.
+        </p>
+        
+        <label className="flex items-start gap-3 cursor-pointer group mb-4">
+          <input 
+            type="checkbox" 
+            checked={confirmClear}
+            onChange={(e) => setConfirmClear(e.target.checked)}
+            className="mt-1 w-4 h-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+          />
+          <span className="text-[11px] font-black text-red-900 uppercase tracking-tight group-hover:text-red-700 transition-colors">
+            मला समजले आहे की ही क्रिया कायमस्वरूपी आहे आणि यामुळे माझे वेळापत्रक हटवले जाईल.
+          </span>
+        </label>
+
+        <button
+          onClick={handleClearAll}
+          disabled={loading || !confirmClear}
+          className="flex items-center gap-2 px-6 py-3 font-black text-xs uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition-all shadow-lg disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Trash2 size={16} /> 🗑️ माझे वेळापत्रक हटवा (CLEAR MY SCHEDULE)
+        </button>
       </div>
     </div>
   );

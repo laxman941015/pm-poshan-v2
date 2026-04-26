@@ -127,6 +127,43 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
     setFuelLoading(false);
   };
 
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const importGlobalRate = async (type: 'staff' | 'fuel') => {
+    try {
+      const { data } = await api.from('system_settings').select('*').single();
+      if (data) {
+        const rate = selectedScope === 'primary' ? data.primary_rate : data.upper_primary_rate;
+        if (type === 'staff') {
+          if (selectedScope === 'primary') setRatePrimary(String(rate));
+          else setRateUpper(String(rate));
+        } else {
+          if (selectedScope === 'primary') setFuelRatePrimary(String(rate));
+          else setFuelRateUpper(String(rate));
+        }
+      }
+    } catch (err) {
+      console.error('Import error:', err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!confirmClear) return;
+    setClearing(true);
+    try {
+      const response = await fetch(`${api.baseUrl}/clear-staff-data?teacher_id=${userId}`, { method: 'DELETE' });
+      if (response.ok) {
+        fetchData();
+        setConfirmClear(false);
+        alert('सर्व माहिती यशस्वीरीत्या हटवण्यात आली आहे.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setClearing(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-center p-2 bg-slate-50 border rounded-lg">
@@ -138,7 +175,7 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
           <div className="p-4 bg-[#3c8dbc] text-white font-black text-xs uppercase flex items-center gap-2"><Users size={16}/> स्वयंपाकी आणि मदतनीस</div>
           <div className="p-5 space-y-4">
@@ -151,7 +188,10 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
                   <option value="per_student">Per Student (प्रति विद्यार्थी)</option>
                   <option value="monthly">मासिक (Monthly)</option>
                 </select>
-                <input type="number" step="0.01" placeholder="दर (Rate) ₹" title="Rate" value={selectedScope === 'primary' ? ratePrimary : rateUpper} onChange={e => selectedScope === 'primary' ? setRatePrimary(e.target.value) : setRateUpper(e.target.value)} className="border p-2 text-sm font-bold" required />
+                <div className="relative">
+                  <input type="number" step="0.01" placeholder="दर (Rate) ₹" title="Rate" value={selectedScope === 'primary' ? ratePrimary : rateUpper} onChange={e => selectedScope === 'primary' ? setRatePrimary(e.target.value) : setRateUpper(e.target.value)} className="w-full border p-2 text-sm font-bold pr-8" required />
+                  <button type="button" onClick={() => importGlobalRate('staff')} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-700" title="Import Master Rate">⚡</button>
+                </div>
               </div>
               <button disabled={staffLoading} className="w-full bg-[#3c8dbc] text-white p-2 font-black text-xs uppercase tracking-widest">{staffLoading ? 'Saving...' : 'जतन करा'}</button>
             </form>
@@ -206,7 +246,10 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
             <form onSubmit={handleSaveFuel} className="space-y-3">
               <input placeholder="इंधन प्रकार / भाजीपाला खर्च (उदा: गॅस, भाजीपाला)" title="Fuel Type" value={fuelType} onChange={e => setFuelType(e.target.value)} className="w-full border p-2 text-sm font-bold bg-slate-50/30 rounded focus:border-[#474379] outline-none transition-all" required />
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Rate (दर) ₹</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                  Rate (दर) ₹
+                  <button type="button" onClick={() => importGlobalRate('fuel')} className="text-[10px] text-purple-600 font-black hover:underline">⚡ Import Master</button>
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                   <input type="number" step="0.01" title="Fuel & Veg Rate" placeholder="0.00" value={selectedScope === 'primary' ? fuelRatePrimary : fuelRateUpper} onChange={e => selectedScope === 'primary' ? setFuelRatePrimary(e.target.value) : setFuelRateUpper(e.target.value)} className="w-full border p-2 pl-7 text-sm font-black bg-slate-50/30 rounded focus:border-[#474379] outline-none transition-all" required />
@@ -248,6 +291,45 @@ export default function StaffForm({ userId, onSuccess }: StaffFormProps) {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DANGER ZONE */}
+      <div className="mt-12 bg-red-50 border-2 border-red-200 rounded-[32px] p-8 md:p-12 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-red-100/50 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-4 text-center md:text-left">
+            <h3 className="text-xl font-black text-red-700 uppercase italic tracking-tighter flex items-center justify-center md:justify-start gap-3">
+              <Trash2 size={24} /> Danger Zone (धोकादायक क्षेत्र)
+            </h3>
+            <p className="text-[11px] font-bold text-red-600/70 uppercase leading-relaxed max-w-xl">
+              खालील बटण दाबल्यास तुमचे सर्व स्वयंपाकी आणि इंधनाची माहिती कायमस्वरूपी हटवली जाईल. ही कृती परत घेता येणार नाही. कृपया विचारपूर्वक निर्णय घ्या.
+            </p>
+          </div>
+          <div className="flex flex-col items-center gap-4 bg-white/50 p-6 rounded-3xl border border-red-100 backdrop-blur-sm">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative">
+                <input 
+                  type="checkbox" 
+                  checked={confirmClear} 
+                  onChange={(e) => setConfirmClear(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="w-6 h-6 border-2 border-red-200 rounded-lg peer-checked:bg-red-600 peer-checked:border-red-600 transition-all group-hover:border-red-400" />
+                <div className="absolute inset-0 flex items-center justify-center text-white scale-0 peer-checked:scale-100 transition-transform">✓</div>
+              </div>
+              <span className="text-[10px] font-black text-red-800 uppercase tracking-widest">मला मान्य आहे, माहिती हटवा</span>
+            </label>
+            <button 
+              disabled={!confirmClear || clearing}
+              onClick={handleClearAll}
+              className={`px-10 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all shadow-xl shadow-red-100 ${
+                confirmClear ? 'bg-red-600 text-white hover:bg-red-700 active:scale-95 shadow-red-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              }`}
+            >
+              {clearing ? 'Clearing...' : 'Clear All Data'}
+            </button>
           </div>
         </div>
       </div>
