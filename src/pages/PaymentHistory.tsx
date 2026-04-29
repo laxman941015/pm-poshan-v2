@@ -87,7 +87,7 @@ export default function PaymentHistory() {
       <div className="w-full max-w-7xl mx-auto px-4 py-4 md:py-8 space-y-6">
         
         {/* Account Status Banner */}
-        <div className="max-w-xl">
+        <div className="max-w-3xl">
            <SubscriptionStatus />
         </div>
 

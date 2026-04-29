@@ -89,10 +89,10 @@ const SubscriptionStatus: React.FC = () => {
       {/* Valid Till (Left aligned on mobile, centered vertically on desktop) */}
       {expiryDate && (
         <>
-          <div className="hidden md:block w-px h-10 bg-slate-100 mx-2"></div>
-          <div className="flex flex-row md:flex-col items-center md:items-start justify-between md:justify-center w-full md:w-auto min-w-max px-2 md:px-0 bg-slate-50/50 md:bg-transparent py-2 md:py-0 rounded-xl md:rounded-none">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valid Till</span>
-            <span className="text-[12px] md:text-[13px] font-black text-slate-800 uppercase tracking-tighter">
+          <div className="hidden md:block w-px h-10 bg-slate-100 mx-1"></div>
+          <div className="flex flex-row md:flex-col items-center md:items-start justify-between md:justify-center w-full md:w-auto min-w-[140px] px-2 md:px-0 bg-slate-50/50 md:bg-transparent py-2 md:py-0 rounded-xl md:rounded-none">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Valid Till</span>
+            <span className="text-[12px] md:text-[13px] font-black text-slate-800 uppercase tracking-tighter whitespace-nowrap">
               {expiryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
             </span>
           </div>

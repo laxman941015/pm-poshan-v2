@@ -65,10 +65,11 @@ export const reconstructOpeningBalances = async (
     const [receiptsRes, consumptionRes] = await Promise.all([
       api
         .from('stock_receipts')
-        .select('item_name, item_code, quantity_kg')
+        .select('item_name, quantity_kg')
         .eq('teacher_id', teacherId)
         .gte('receipt_date', fyStart)
-        .lt('receipt_date', cutoffDate),
+        .lt('receipt_date', cutoffDate)
+        .or(standardGroup ? `standard_group.eq.${standardGroup},standard_group.is.null` : 'standard_group.is.null,standard_group.neq.null'),
       api
         .from('consumption_logs')
         .select('meals_served_primary, meals_served_upper_primary, main_foods_all, ingredients_used, standard_group')
@@ -78,9 +79,9 @@ export const reconstructOpeningBalances = async (
         .or(standardGroup ? `standard_group.eq.${standardGroup},standard_group.is.null` : 'standard_group.is.null,standard_group.neq.null')
     ]);
 
-    // 1. Initial Sum of Receipts (Prefer Code)
+    // 1. Initial Sum of Receipts
     (receiptsRes.data as StockReceipt[] || []).forEach(r => {
-      const code = r.item_code || nameToCode[r.item_name] || r.item_name;
+      const code = nameToCode[r.item_name] || r.item_name;
       codeToBalance[code] = (codeToBalance[code] || 0) + Number(r.quantity_kg);
     });
 

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../lib/apiClient';
 import Layout from '../components/Layout';
-import { PackagePlus, RefreshCw, FileText, Printer, Trash2, AlertTriangle, Search, X } from 'lucide-react';
+import { PackagePlus, RefreshCw, FileText, Printer, Trash2, AlertTriangle, Search, X, Package } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getCurrentStock, getFinancialYearStart } from '../utils/inventoryUtils';
 
@@ -40,7 +41,7 @@ export default function StockRegister() {
 
   // Opening Balance Modal State
   const [showOpeningModal, setShowOpeningModal] = useState(false);
-  const [openingBalances, setOpeningBalances] = useState<Record<string, string>>({});
+  const [openingBalances, setOpeningBalances] = useState<Record<string, { primary: string; upper_primary: string }>>({});
   const [openingDate, setOpeningDate] = useState(`${new Date().getFullYear()}-04-01`);
   const [hasOpeningStock, setHasOpeningStock] = useState(false);
 
@@ -172,9 +173,16 @@ export default function StockRegister() {
 
       if (openingRecs.data && openingRecs.data.length > 0) {
         setHasOpeningStock(true);
-        const balances: Record<string, string> = {};
+        const balances: Record<string, { primary: string; upper_primary: string }> = {};
         openingRecs.data.forEach((r: any) => {
-          balances[r.item_name] = String(r.quantity_kg);
+          if (!balances[r.item_name]) {
+            balances[r.item_name] = { primary: '0', upper_primary: '0' };
+          }
+          if (r.standard_group === 'upper_primary') {
+            balances[r.item_name].upper_primary = String(r.quantity_kg);
+          } else {
+            balances[r.item_name].primary = String(r.quantity_kg);
+          }
         });
         setOpeningBalances(balances);
         setOpeningDate(openingRecs.data[0].receipt_date);
@@ -637,39 +645,59 @@ export default function StockRegister() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {menuItems.map(itemName => {
-                  const valStr = openingBalances[itemName] || '0';
-                  const val = parseFloat(valStr);
-                  const isNegative = val < 0;
-                  const isPositive = val > 0;
+                  const itemData = openingBalances[itemName] || { primary: '0', upper_primary: '0' };
                   
                   return (
-                    <div key={itemName} className="p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <label htmlFor={`opening-balance-${itemName}`} className="text-xs font-black text-slate-700 uppercase">{itemName}</label>
-                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase border ${
-                          isPositive ? 'text-green-600 bg-green-50 border-green-100' : 
-                          isNegative ? 'text-red-600 bg-red-50 border-red-100' : 
-                          'text-slate-400 bg-slate-50 border-slate-100'
-                        }`}>
-                          {isPositive ? 'In Stock (शिल्लक)' : isNegative ? 'Borrowed (उसणे)' : 'Zero (शून्य)'}
-                        </span>
+                    <div key={itemName} className="p-5 border-2 border-slate-100 rounded-[28px] hover:border-indigo-100 hover:bg-indigo-50/20 transition-all space-y-4 group">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3 group-hover:border-indigo-100 transition-colors">
+                        <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{itemName}</label>
+                        <Package size={16} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
                       </div>
-                      <div className="relative">
-                        <input 
-                          id={`opening-balance-${itemName}`}
-                          type="number" 
-                          step="any"
-                          placeholder="0.00"
-                          title={`${itemName} ची सुरुवातीची शिल्लक (Opening balance of ${itemName})`}
-                          value={openingBalances[itemName] ?? ''}
-                          onChange={(e) => setOpeningBalances(prev => ({ ...prev, [itemName]: e.target.value }))}
-                          className={`w-full p-2.5 text-sm font-black rounded-lg border transition-all outline-none ${
-                            isNegative ? 'border-red-300 bg-red-50 text-red-700' : 
-                            isPositive ? 'border-green-300 bg-green-50 text-green-700' : 
-                            'border-slate-200 focus:border-[#3c8dbc]'
-                          }`}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">KG</span>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Primary (I-V) Input */}
+                        {hasPrimary && (
+                          <div className="space-y-2">
+                            <label htmlFor={`opening-primary-${itemName}`} className="block text-[9px] font-black text-blue-500 uppercase tracking-wider ml-1">इ. १ ते ५ वी (1-5th)</label>
+                            <div className="relative">
+                              <input 
+                                id={`opening-primary-${itemName}`}
+                                type="number" 
+                                step="any"
+                                placeholder="0.00"
+                                value={itemData.primary ?? ''}
+                                onChange={(e) => setOpeningBalances(prev => ({ 
+                                  ...prev, 
+                                  [itemName]: { ...(prev[itemName] || { primary: '0', upper_primary: '0' }), primary: e.target.value } 
+                                }))}
+                                className="w-full p-3.5 text-sm font-black rounded-2xl border-2 border-slate-100 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all outline-none text-slate-800"
+                              />
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">KG</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Upper Primary (VI-VIII) Input */}
+                        {hasUpperPrimary && (
+                          <div className="space-y-2">
+                            <label htmlFor={`opening-upper-${itemName}`} className="block text-[9px] font-black text-purple-600 uppercase tracking-wider ml-1">इ. ६ ते ८ वी (6-8th)</label>
+                            <div className="relative">
+                              <input 
+                                id={`opening-upper-${itemName}`}
+                                type="number" 
+                                step="any"
+                                placeholder="0.00"
+                                value={itemData.upper_primary ?? ''}
+                                onChange={(e) => setOpeningBalances(prev => ({ 
+                                  ...prev, 
+                                  [itemName]: { ...(prev[itemName] || { primary: '0', upper_primary: '0' }), upper_primary: e.target.value } 
+                                }))}
+                                className="w-full p-3.5 text-sm font-black rounded-2xl border-2 border-slate-100 bg-white focus:border-purple-400 focus:ring-4 focus:ring-purple-50 transition-all outline-none text-slate-800"
+                              />
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">KG</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -702,6 +730,7 @@ export default function StockRegister() {
                               .from('inventory_stock')
                               .select('id, current_balance')
                               .eq('teacher_id', userId)
+                              .eq('standard_group', rec.standard_group)
                               .or(`item_code.eq."${rec.item_code}",and(item_name.eq."${rec.item_name}",item_code.is.null)`)
                               .maybeSingle();
                             
@@ -742,54 +771,64 @@ export default function StockRegister() {
                       onClick={async () => {
                         setLoading(true);
                         try {
-                          const entries = Object.entries(openingBalances).filter(([_, valStr]) => valStr !== '' && valStr !== '0');
-                          for (const [name, valStr] of entries) {
-                            const val = parseFloat(valStr);
-                            if (isNaN(val)) continue;
+                          const entries = Object.entries(openingBalances);
+                          for (const [name, data] of entries) {
+                            const groups = [
+                              { type: 'primary' as const, val: parseFloat(data.primary || '0') },
+                              { type: 'upper_primary' as const, val: parseFloat(data.upper_primary || '0') }
+                            ];
 
-                            const code = nameToCodeMap[name] || null;
-                            const { data: exist } = await (api as any)
-                              .from('inventory_stock')
-                              .select('id, current_balance')
-                              .eq('teacher_id', userId)
-                              .or(`item_code.eq."${code}",and(item_name.eq."${name}",item_code.is.null)`)
-                              .maybeSingle();
-                            
-                            const { data: oldReceipt } = await (api as any)
-                              .from('stock_receipts')
-                              .select('id, quantity_kg')
-                              .eq('teacher_id', userId)
-                              .or(`item_code.eq."${code}",and(item_name.eq."${name}",item_code.is.null)`)
-                              .eq('bill_no', 'OPENING_BALANCE')
-                              .maybeSingle();
-                            
-                            if (oldReceipt) {
-                              const balanceAdjustment = val - Number(oldReceipt.quantity_kg);
-                              if (exist) {
-                                await (api as any).from('inventory_stock').update({ current_balance: Number(exist.current_balance) + balanceAdjustment }).eq('id', exist.id);
-                              }
-                              await (api as any).from('stock_receipts').update({ quantity_kg: val, receipt_date: openingDate }).eq('id', oldReceipt.id);
-                            } else {
-                              if (exist) {
-                                await (api as any).from('inventory_stock').update({ current_balance: Number(exist.current_balance) + val }).eq('id', exist.id);
-                              } else {
-                                await (api as any).from('inventory_stock').insert({ 
-                                  teacher_id: userId, 
-                                  item_name: name, 
+                            for (const g of groups) {
+                              if (isNaN(g.val)) continue;
+                              const code = nameToCodeMap[name] || null;
+
+                              // 1. Find existing inventory for THIS group
+                              const { data: exist } = await (api as any)
+                                .from('inventory_stock')
+                                .select('id, current_balance')
+                                .eq('teacher_id', userId)
+                                .eq('standard_group', g.type)
+                                .or(`item_code.eq."${code}",and(item_name.eq."${name}",item_code.is.null)`)
+                                .maybeSingle();
+                              
+                              // 2. Find existing opening receipt for THIS group
+                              const { data: oldReceipt } = await (api as any)
+                                .from('stock_receipts')
+                                .select('id, quantity_kg')
+                                .eq('teacher_id', userId)
+                                .eq('standard_group', g.type)
+                                .eq('bill_no', 'OPENING_BALANCE')
+                                .or(`item_code.eq."${code}",and(item_name.eq."${name}",item_code.is.null)`)
+                                .maybeSingle();
+                              
+                              if (oldReceipt) {
+                                const balanceAdjustment = g.val - Number(oldReceipt.quantity_kg);
+                                if (exist) {
+                                  await (api as any).from('inventory_stock').update({ current_balance: Number(exist.current_balance) + balanceAdjustment }).eq('id', exist.id);
+                                }
+                                await (api as any).from('stock_receipts').update({ quantity_kg: g.val, receipt_date: openingDate }).eq('id', oldReceipt.id);
+                              } else if (g.val !== 0) {
+                                if (exist) {
+                                  await (api as any).from('inventory_stock').update({ current_balance: Number(exist.current_balance) + g.val }).eq('id', exist.id);
+                                } else {
+                                  await (api as any).from('inventory_stock').insert({ 
+                                    teacher_id: userId, 
+                                    item_name: name, 
+                                    item_code: code,
+                                    current_balance: g.val, 
+                                    standard_group: g.type 
+                                  });
+                                }
+                                await (api as any).from('stock_receipts').insert({
+                                  teacher_id: userId,
+                                  item_name: name,
                                   item_code: code,
-                                  current_balance: val, 
-                                  standard_group: 'primary' 
+                                  quantity_kg: g.val,
+                                  receipt_date: openingDate,
+                                  bill_no: 'OPENING_BALANCE',
+                                  standard_group: g.type
                                 });
                               }
-                              await (api as any).from('stock_receipts').insert({
-                                teacher_id: userId,
-                                item_name: name,
-                                item_code: code,
-                                quantity_kg: val,
-                                receipt_date: openingDate,
-                                bill_no: 'OPENING_BALANCE',
-                                standard_group: 'primary'
-                              });
                             }
                           }
                           setMessage({ type: 'success', text: 'Opening balances updated successfully!' });
