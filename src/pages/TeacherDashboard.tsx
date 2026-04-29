@@ -480,9 +480,13 @@ export default function TeacherDashboard() {
                             ((hasPrimary ? Number(matchedLog.meals_served_primary) || 0 : 0) + 
                              (hasUpperPrimary ? Number(matchedLog.meals_served_upper_primary) || 0 : 0)) : 0;
                           
+
                           const isToday = dateStr === today;
                           const isPast = dateStr < today;
-                          const isFuture = dateStr > today;
+                          const isFutureDate = dateStr > today;
+                          
+                          // Allow logging if the month is current or past
+                          const isBeyondCurrentMonth = (selectedYear > now.getFullYear()) || (selectedYear === now.getFullYear() && selectedMonth > now.getMonth());
 
                           const dateObj = new Date(selectedYear, selectedMonth, d);
                           const dayOfWeek = dateObj.getDay();
@@ -502,7 +506,7 @@ export default function TeacherDashboard() {
                           let statusText = "-";
                           let labelStyle = "text-slate-400";
 
-                          if (isHoliday || (isInactiveDay && !isSubmitted && !isFuture)) {
+                          if (isHoliday || (isInactiveDay && !isSubmitted && !isFutureDate)) {
                             style = "bg-amber-50/50 border-amber-200 text-amber-700 shadow-sm";
                             statusText = "सुट्टी (SUTTI)";
                             labelStyle = "text-amber-600/60";
@@ -524,11 +528,11 @@ export default function TeacherDashboard() {
                             <div 
                               key={d} 
                               onClick={() => {
-                                if (isFuture) return;
+                                if (isBeyondCurrentMonth) return;
                                 setSelectedLogDate(dateStr);
                                 setIsLogModalOpen(true);
                               }}
-                              className={`aspect-square border flex flex-col justify-between items-center p-2 rounded-2xl transition-all ${isFuture ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'} ${style}`}
+                              className={`aspect-square border flex flex-col justify-between items-center p-2 rounded-2xl transition-all ${isBeyondCurrentMonth ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'} ${style}`}
                             >
                               <div className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black ${isSubmitted || isToday || isHoliday ? 'bg-white/20' : 'bg-slate-50'}`}>
                                 {d}
