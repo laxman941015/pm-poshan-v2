@@ -46,3 +46,9 @@ dist-ssr/
 *.njsproj
 *.sln
 *.sw?
+
+# Mobile App (Separate Base)
+mobile/
+temp_apk/
+*.apk
+build/

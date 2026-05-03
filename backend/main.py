@@ -620,6 +620,59 @@ def get_generic_data(
         # Public tables
         return query.all()
 
+@app.get("/data/monthly-stats")
+def get_monthly_stats(
+    month: Optional[int] = None, 
+    year: Optional[int] = None,
+    db: Session = Depends(get_db), 
+    current_user: models.Profile = Depends(auth.get_current_user)
+):
+    now = datetime.now()
+    target_month = month or now.month
+    target_year = year or now.year
+    
+    start_of_month = date(target_year, target_month, 1)
+    if target_month == 12:
+        end_of_month = date(target_year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_of_month = date(target_year, target_month + 1, 1) - timedelta(days=1)
+    
+    logs = db.query(models.DailyLog).filter(
+        models.DailyLog.teacher_id == str(current_user.id),
+        models.DailyLog.log_date >= start_of_month,
+        models.DailyLog.log_date <= end_of_month
+    ).all()
+    
+    primary_total = sum(log.meals_served_primary or 0 for log in logs)
+    upper_total = sum(log.meals_served_upper_primary or 0 for log in logs)
+    
+    return {
+        "primary": primary_total,
+        "upper": upper_total
+    }
+
+@app.post("/sync-enrollment")
+def sync_enrollment(data: Dict[str, Any], db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+    try:
+        # 1. Find or create enrollment record
+        existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == str(current_user.id)).first()
+        
+        if not existing:
+            existing = models.StudentEnrollment(teacher_id=str(current_user.id))
+            db.add(existing)
+        
+        # 2. Update standard counts (std_1 to std_8)
+        for key, value in data.items():
+            if hasattr(existing, key):
+                setattr(existing, key, int(value) if value is not None else 0)
+        
+        db.commit()
+        db.refresh(existing)
+        return {"status": "success", "message": "Enrollment synced successfully", "data": existing}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/data/{table_name}")
 def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str, Any]]], db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
     table_map = {
@@ -650,7 +703,7 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
     table_name = table_name.replace("-", "_").replace(" ", "_")
     
     if table_name not in table_map:
-        raise HTTPException(status_code=404, detail=f"Table '{original_table_name}' not found or insertion restricted")
+        raise HTTPException(status_code=404, detail=f"BACKEND ERROR: Table mapping not found for '{table_name}' (normalized from '{original_table_name}')")
     
     model = table_map[table_name]
     
@@ -671,8 +724,28 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
                 
                 if existing:
                     for k, v in item_data.items():
-                        if k != 'id': # Don't update the primary key
-                            setattr(existing, k, v)
+                        if k != 'id': setattr(existing, k, v)
+                    processed_items.append(existing)
+                    continue
+
+            # Specialized Upsert for Student Enrollment
+            if table_name == "student_enrollment":
+                existing = db.query(model).filter(model.teacher_id == str(current_user.id)).first()
+                if existing:
+                    for k, v in item_data.items():
+                        if k != 'id': setattr(existing, k, v)
+                    processed_items.append(existing)
+                    continue
+
+            # Specialized Upsert for Inventory Stock
+            if table_name == "inventory_stock":
+                existing = db.query(model).filter(
+                    model.teacher_id == str(current_user.id),
+                    model.item_code == item_data.get('item_code')
+                ).first()
+                if existing:
+                    for k, v in item_data.items():
+                        if k != 'id': setattr(existing, k, v)
                     processed_items.append(existing)
                     continue
 
@@ -688,6 +761,16 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
     # Handle Single Item
     if hasattr(model, 'teacher_id'):
         data['teacher_id'] = str(current_user.id)
+
+    # Single Item Upsert for Enrollment
+    if table_name == "student_enrollment":
+        existing = db.query(model).filter(model.teacher_id == str(current_user.id)).first()
+        if existing:
+            for k, v in data.items():
+                if k != 'id': setattr(existing, k, v)
+            db.commit()
+            db.refresh(existing)
+            return existing
         
     db_item = model(**data)
     db.add(db_item)

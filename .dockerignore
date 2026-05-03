@@ -1,0 +1,19 @@
+# Exclude mobile code from production build context
+mobile/
+.dart_tool/
+.pub-cache/
+
+# Exclude web build artifacts and dependencies
+node_modules/
+dist/
+build/
+
+# Exclude version control and logs
+.git
+.gitignore
+*.log
+.env
+.venv
+__pycache__/
+temp_apk/
+*.apk
