@@ -478,8 +478,10 @@ def delete_daily_logs(
 
 # 8. Enrollment (Get/Create/Update)
 @app.get("/enrollment", response_model=Optional[schemas.Enrollment])
-def get_enrollment(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
-    return db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == str(current_user.id)).first()
+def get_enrollment(teacher_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+    # Use provided teacher_id (web portal) or fallback to logged-in user (mobile app)
+    target_id = teacher_id or str(current_user.id)
+    return db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
 
 @app.post("/enrollment")
 def upsert_enrollment(data: schemas.EnrollmentBase, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
@@ -529,7 +531,8 @@ def get_generic_data(
         "teacher_subscriptions": models.SaasSubscription,
         "system_modules": models.SystemModule,
         "global_schedule": models.GlobalSchedule,
-        "system_settings": models.SystemSettings
+        "system_settings": models.SystemSettings,
+        "monthly_stats": None # Special logic handled by @app.get("/data/monthly-stats")
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
@@ -652,25 +655,33 @@ def get_monthly_stats(
     }
 
 @app.post("/sync-enrollment")
-def sync_enrollment(data: Dict[str, Any], db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def sync_enrollment(data: Dict[str, Any], teacher_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
     try:
+        # Use provided teacher_id (web portal) or fallback to logged-in user (mobile app)
+        target_id = teacher_id or str(current_user.id)
+        
         # 1. Find or create enrollment record
-        existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == str(current_user.id)).first()
+        existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
         
         if not existing:
-            existing = models.StudentEnrollment(teacher_id=str(current_user.id))
+            existing = models.StudentEnrollment(teacher_id=target_id)
             db.add(existing)
+            db.flush() # Get the ID for the new record
         
-        # 2. Update standard counts (std_1 to std_8)
-        for key, value in data.items():
-            if hasattr(existing, key):
-                setattr(existing, key, int(value) if value is not None else 0)
+        # 2. Force Update standard counts (std_1 to std_8)
+        # We explicitly update all 8 standard columns to match the mobile payload
+        for i in range(1, 9):
+            key = f'std_{i}'
+            if key in data:
+                val = int(data[key]) if data[key] is not None else 0
+                setattr(existing, key, val)
         
         db.commit()
         db.refresh(existing)
         return {"status": "success", "message": "Enrollment synced successfully", "data": existing}
     except Exception as e:
         db.rollback()
+        print(f"SYNC ERROR: {str(e)}") # Log to terminal for visibility
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/data/{table_name}")
@@ -695,7 +706,8 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
         "demand_reports": models.DemandReport,
         "financial_ledger_snapshots": models.FinancialLedgerSnapshot,
         "global_schedule": models.GlobalSchedule,
-        "system_settings": models.SystemSettings
+        "system_settings": models.SystemSettings,
+        "monthly_stats": None # Read-only special logic
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
