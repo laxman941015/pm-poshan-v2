@@ -484,16 +484,27 @@ def get_enrollment(teacher_id: Optional[str] = None, db: Session = Depends(get_d
     return db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
 
 @app.post("/enrollment")
-def upsert_enrollment(data: schemas.EnrollmentBase, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
-    existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == str(current_user.id)).first()
-    if existing:
-        for key, value in data.dict().items():
-            setattr(existing, key, value)
-    else:
-        new_row = models.StudentEnrollment(teacher_id=str(current_user.id), **data.dict())
-        db.add(new_row)
-    db.commit()
-    return {"status": "success"}
+def upsert_enrollment(data: Dict[str, Any], teacher_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+    try:
+        target_id = teacher_id or str(current_user.id)
+        existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
+        
+        if not existing:
+            existing = models.StudentEnrollment(teacher_id=target_id)
+            db.add(existing)
+            db.flush()
+            
+        # Update standard counts (std_1 to std_8)
+        for i in range(1, 9):
+            key = f'std_{i}'
+            if key in data:
+                setattr(existing, key, int(data[key]) if data[key] is not None else 0)
+        
+        db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 9. Generic Data Query (Supporting remaining tables)
 # This mimics Supabase .from('table').select('*').eq('teacher_id', userId)
@@ -504,6 +515,15 @@ def get_generic_data(
     db: Session = Depends(get_db), 
     current_user: models.Profile = Depends(auth.get_current_user)
 ):
+    # 📊 Handle specialized stats route first to avoid 404
+    if table_name in ["monthly-stats", "monthly_stats"]:
+        return get_monthly_stats(
+            month=request.query_params.get("month"),
+            year=request.query_params.get("year"),
+            db=db,
+            current_user=current_user
+        )
+
     # Map table names to models
     table_map = {
         "schools": models.School,
@@ -531,15 +551,14 @@ def get_generic_data(
         "teacher_subscriptions": models.SaasSubscription,
         "system_modules": models.SystemModule,
         "global_schedule": models.GlobalSchedule,
-        "system_settings": models.SystemSettings,
-        "monthly_stats": None # Special logic handled by @app.get("/data/monthly-stats")
+        "system_settings": models.SystemSettings
     }
     
     # 🛠️ Handle hyphens/spaces and normalize table name
     original_table_name = table_name
     table_name = table_name.replace("-", "_").replace(" ", "_")
     
-    if table_name not in table_map or table_map[table_name] is None:
+    if table_name not in table_map:
         print(f"DEBUG: Table not found: {original_table_name} (normalized to {table_name})")
         raise HTTPException(status_code=404, detail=f"Table '{original_table_name}' not found or access restricted")
     
