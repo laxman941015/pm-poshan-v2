@@ -479,7 +479,12 @@ def delete_daily_logs(
 # 8. Enrollment (Get/Create/Update)
 @app.get("/enrollment", response_model=Optional[schemas.Enrollment])
 def get_enrollment(teacher_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
-    # Use provided teacher_id (web portal) or fallback to logged-in user (mobile app)
+    # 🔒 SECURITY LOCK: Only allow the teacher to see their OWN data
+    # Admins/Masters can see any teacher's data via the parameter
+    if teacher_id and str(current_user.id) != teacher_id and current_user.role not in ["master", "admin"]:
+        print(f"SECURITY ALERT: User {current_user.id} tried to access teacher {teacher_id}")
+        raise HTTPException(status_code=403, detail="You do not have permission to view this data")
+        
     target_id = teacher_id or str(current_user.id)
     return db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
 
@@ -676,9 +681,11 @@ def get_monthly_stats(
 @app.post("/sync-enrollment")
 def sync_enrollment(data: Dict[str, Any], teacher_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
     try:
-        # Use provided teacher_id (web portal) or fallback to logged-in user (mobile app)
+        # 🔒 SECURITY LOCK: Only allow the teacher to sync their OWN data
+        if teacher_id and str(current_user.id) != teacher_id and current_user.role not in ["master", "admin"]:
+             raise HTTPException(status_code=403, detail="You can only sync your own data")
+
         target_id = teacher_id or str(current_user.id)
-        
         # 1. Find or create enrollment record
         existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
         
