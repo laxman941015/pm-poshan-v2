@@ -24,9 +24,8 @@ interface EnrollmentFormProps {
   onSuccess?: () => void;
 }
 
-export default function EnrollmentForm({ userId: propUserId, onSuccess }: EnrollmentFormProps) {
+export default function EnrollmentForm({ userId, onSuccess }: EnrollmentFormProps) {
   const { user } = useAuth();
-  const userId = user?.id || propUserId; // Prioritize actual logged-in user ID
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
