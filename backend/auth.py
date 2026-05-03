@@ -65,7 +65,13 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    user = db.query(models.Profile).filter(models.Profile.email == token_data.email).first()
+    # 🛡️ Use ID-based lookup for absolute precision
+    if token_data.user_id:
+        user = db.query(models.Profile).filter(models.Profile.id == token_data.user_id).first()
+    else:
+        # Fallback to email for older tokens
+        user = db.query(models.Profile).filter(models.Profile.email == token_data.email).first()
+        
     if user is None:
         raise credentials_exception
     return user

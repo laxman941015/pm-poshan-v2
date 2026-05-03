@@ -142,6 +142,13 @@ def login_for_access_token(response: Response, form_data: schemas.UserLogin, db:
     print(f"DEBUG: Login attempt for {form_data.email}")
     try:
         clean_email = form_data.email.strip().lower()
+        
+        # 🛡️ IDENTITY SHIELD: Check for duplicate emails to prevent login into the wrong account
+        user_count = db.query(models.Profile).filter(func.lower(func.trim(models.Profile.email)) == clean_email).count()
+        if user_count > 1:
+            print(f"CRITICAL: Duplicate email detected for {clean_email}. Found {user_count} accounts.")
+            raise HTTPException(status_code=409, detail="Account conflict detected. Multiple profiles found for this email. Please contact support.")
+            
         user = db.query(models.Profile).filter(func.lower(func.trim(models.Profile.email)) == clean_email).first()
         if not user:
             raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -428,6 +435,11 @@ def get_daily_logs(
         models.DailyLog.log_date >= start_date,
         models.DailyLog.log_date <= end_date
     )
+    
+    # 🔒 SECURITY LOCK: If they try to filter by another teacher_id in params, override it
+    if request.query_params.get("teacher_id") and request.query_params.get("teacher_id") != str(current_user.id):
+        if current_user.role not in ["master", "admin"]:
+            raise HTTPException(status_code=403, detail="Permission Denied: You can only access your own daily logs.")
     if log_date:
         query = query.filter(models.DailyLog.log_date == log_date)
     return query.all()
@@ -568,6 +580,16 @@ def get_generic_data(
         raise HTTPException(status_code=404, detail=f"Table '{original_table_name}' not found or access restricted")
     
     model = table_map[table_name]
+
+    # 🔒 SECURITY LOCK: Prevent users from seeing other people's data
+    req_teacher_id = request.query_params.get("teacher_id")
+    req_id = request.query_params.get("id")
+    if current_user.role not in ["master", "admin"]:
+        if req_teacher_id and req_teacher_id != str(current_user.id):
+             raise HTTPException(status_code=403, detail="Permission Denied: Accessing another user's data is restricted.")
+        if req_id and table_name == "profiles" and req_id != str(current_user.id):
+             raise HTTPException(status_code=403, detail="Permission Denied: Accessing another user's profile is restricted.")
+
     query = db.query(model)
 
     # 🔍 APPLY FILTERS FROM QUERY PARAMS
@@ -686,6 +708,8 @@ def sync_enrollment(data: Dict[str, Any], teacher_id: Optional[str] = None, db: 
              raise HTTPException(status_code=403, detail="You can only sync your own data")
 
         target_id = teacher_id or str(current_user.id)
+        print(f"DEBUG: SYNC ATTEMPT | User: {current_user.email} | Target ID: {target_id}")
+        
         # 1. Find or create enrollment record
         existing = db.query(models.StudentEnrollment).filter(models.StudentEnrollment.teacher_id == target_id).first()
         
