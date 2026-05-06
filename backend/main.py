@@ -758,6 +758,19 @@ def post_generic_data(table_name: str, data: Union[Dict[str, Any], List[Dict[str
                     processed_items.append(existing)
                     continue
 
+            # Specialized Upsert for Global Schedule
+            if table_name == "global_schedule":
+                existing = db.query(model).filter(
+                    model.week_pattern == item_data.get('week_pattern'),
+                    model.day_name == item_data.get('day_name')
+                ).first()
+                
+                if existing:
+                    for k, v in item_data.items():
+                        if k != 'id': setattr(existing, k, v)
+                    processed_items.append(existing)
+                    continue
+
             # Specialized Upsert for Student Enrollment
             if table_name == "student_enrollment":
                 existing = db.query(model).filter(model.teacher_id == str(current_user.id)).first()
